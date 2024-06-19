@@ -1,3 +1,4 @@
+from gettext import gettext as _
 from types import SimpleNamespace
 
 
@@ -71,3 +72,5 @@ MEGABYTE = 1_000_000
 SIGNATURE_PAYLOAD_MAX_SIZE = 4 * MEGABYTE
 
 SIGNATURE_API_EXTENSION_VERSION = 2
+
+REPOSITORY_NOT_FOUND_AFTER_FILTER = _("No repository found for the defined remote filters")

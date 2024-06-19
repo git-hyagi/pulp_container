@@ -28,11 +28,13 @@ from pulp_container.app.models import ContainerDistribution, Tag, Blob, Manifest
 from pulp_container.app.tasks import download_image_data
 from pulp_container.app.utils import (
     calculate_digest,
-    get_accepted_media_types,
     determine_media_type,
+    filter_repo,
+    get_accepted_media_types,
     save_artifact,
 )
 from pulp_container.constants import BLOB_CONTENT_TYPE, EMPTY_BLOB, MEDIA_TYPE, V2_ACCEPT_HEADERS
+from pulp_container.app.exceptions import RepositoryNotFound
 
 log = logging.getLogger(__name__)
 
@@ -404,9 +406,13 @@ class PullThroughDownloader:
         return raw_text_data, digest, media_type
 
     async def run_manifest_downloader(self):
+        try:
+            repo_name = filter_repo(self.remote)
+        except RepositoryNotFound:
+            raise
         if self.downloader is None:
             relative_url = "/v2/{name}/manifests/{identifier}".format(
-                name=self.remote.namespaced_upstream_name, identifier=self.identifier
+                name=repo_name, identifier=self.identifier
             )
             url = urljoin(self.remote.url, relative_url)
             self.downloader = self.remote.get_downloader(url=url)

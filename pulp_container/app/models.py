@@ -503,6 +503,9 @@ class ContainerPullThroughRemote(Remote, AutoAddObjPermsMixin):
     from within a single instance of this remote.
     """
 
+    includes = models.JSONField(null=True)
+    excludes = models.JSONField(null=True)
+
     class Meta:
         default_related_name = "%(app_label)s_%(model_name)s"
         permissions = [
