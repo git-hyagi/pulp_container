@@ -310,6 +310,14 @@ class ContainerRegistryApiMixin:
         except RepositoryNotFound:
             raise
 
+        pull_through_remote = models.ContainerPullThroughRemote.objects.filter(
+            pk=pull_through_cache_distribution.remote_id
+        ).values()[0]
+        if not filter_resource(
+            path, pull_through_remote.get("includes"), pull_through_remote.get("excludes")
+        ):
+            raise RepositoryNotFound(name=path)
+
         try:
             with transaction.atomic():
                 repository, _ = models.ContainerRepository.objects.get_or_create(
