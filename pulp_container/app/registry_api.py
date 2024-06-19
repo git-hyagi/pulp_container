@@ -82,6 +82,7 @@ from pulp_container.app.token_verification import (
 from pulp_container.app.utils import (
     determine_media_type,
     extract_data_from_signature,
+    filter_resource,
     has_task_completed,
     validate_manifest,
 )
@@ -104,6 +105,8 @@ IGNORED_PULL_THROUGH_REMOTE_ATTRIBUTES = [
     "pulp_id",
     "url",
     "name",
+    "includes",
+    "excludes",
 ]
 
 
@@ -309,13 +312,21 @@ class ContainerRegistryApiMixin:
         if not pull_through_cache_distribution:
             raise RepositoryNotFound(name=path)
 
+        pull_through_remote = models.ContainerPullThroughRemote.objects.filter(
+            pk=pull_through_cache_distribution.remote_id
+        ).values()[0]
+        if not filter_resource(
+            path, pull_through_remote.get("includes"), pull_through_remote.get("excludes")
+        ):
+            raise RepositoryNotFound(name=path)
+
         try:
             with transaction.atomic():
                 repository, _ = models.ContainerRepository.objects.get_or_create(
                     name=path, retain_repo_versions=1
                 )
 
-                remote_data = _get_pull_through_remote_data(pull_through_cache_distribution)
+                remote_data = _get_pull_through_remote_data(pull_through_remote)
                 upstream_name = path.split(pull_through_cache_distribution.base_path, maxsplit=1)[1]
                 remote, _ = models.ContainerRemote.objects.get_or_create(
                     name=path,
@@ -389,10 +400,7 @@ class ContainerRegistryApiMixin:
         return distribution, repository
 
 
-def _get_pull_through_remote_data(root_cache_distribution):
-    remote_data = models.ContainerPullThroughRemote.objects.filter(
-        pk=root_cache_distribution.remote_id
-    ).values()[0]
+def _get_pull_through_remote_data(remote_data):
     for attr in IGNORED_PULL_THROUGH_REMOTE_ATTRIBUTES:
         remote_data.pop(attr, None)
     return remote_data
