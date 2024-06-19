@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import fnmatch
 import re
 import subprocess
 import gnupg
@@ -15,8 +16,11 @@ from rest_framework.exceptions import Throttled
 
 from pulpcore.plugin.models import Artifact, Task
 
-from pulp_container.constants import MANIFEST_MEDIA_TYPES, MEDIA_TYPE
-from pulp_container.app.exceptions import ManifestInvalid
+from pulp_container.constants import (
+    MANIFEST_MEDIA_TYPES,
+    MEDIA_TYPE,
+)
+from pulp_container.app.exceptions import ManifestInvalid, RepositoryNotFound
 from pulp_container.app.json_schemas import (
     OCI_INDEX_SCHEMA,
     OCI_MANIFEST_SCHEMA,
@@ -309,3 +313,43 @@ def get_content_data(saved_artifact):
         raw_data = file.read()
     content_data = json.loads(raw_data)
     return content_data, raw_data
+
+
+def filter_resource(remote, element_list, tags=False):
+    """
+    Filter tags or repos by a list of included and/or excluded definition(s).
+    """
+    if tags:
+        include = remote.include_tags
+        exclude = remote.exclude_tags
+    else:
+        include = remote.includes
+        exclude = remote.excludes
+
+    if include:
+        element_list = [
+            item
+            for item in element_list
+            if any(fnmatch.fnmatch(item, pattern) for pattern in include)
+        ]
+
+    if exclude:
+        element_list = [
+            item
+            for item in element_list
+            if not any(fnmatch.fnmatch(item, pattern) for pattern in exclude)
+        ]
+
+    return element_list
+
+
+def filter_repo(remote):
+    """
+    Filter repositories and return the name of the repository or an exception in cases none is
+    found after applying the filter.
+    """
+    repo_name = remote.namespaced_upstream_name
+    filtered_repo = filter_resource(remote, [repo_name])
+    if len(filtered_repo) == 0:
+        raise RepositoryNotFound(name=repo_name)
+    return filtered_repo[0]

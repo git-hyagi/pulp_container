@@ -82,6 +82,7 @@ from pulp_container.app.token_verification import (
 from pulp_container.app.utils import (
     determine_media_type,
     extract_data_from_signature,
+    filter_repo,
     has_task_completed,
     validate_manifest,
 )
@@ -1110,9 +1111,11 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
         return add_content_units
 
     def fetch_manifest(self, remote, pk):
-        relative_url = "/v2/{name}/manifests/{pk}".format(
-            name=remote.namespaced_upstream_name, pk=pk
-        )
+        try:
+            repo_name = filter_repo(remote)
+        except RepositoryNotFound:
+            raise
+        relative_url = "/v2/{name}/manifests/{pk}".format(name=repo_name, pk=pk)
         tag_url = urljoin(remote.url, relative_url)
         downloader = remote.get_downloader(url=tag_url)
         try:
