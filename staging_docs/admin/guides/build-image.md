@@ -40,6 +40,8 @@ CMD ["cat", "/inside-image.txt"]' >> Containerfile
 
 ## Build an OCI image
 
+### From artifact
+
 ```bash
 TASK_HREF=$(http --form POST :$REPO_HREF'build_image/' containerfile@./Containerfile \
 artifacts="{\"$ARTIFACT_HREF\": \"foo/bar/example.txt\"}"  | jq -r '.task')
@@ -50,3 +52,17 @@ artifacts="{\"$ARTIFACT_HREF\": \"foo/bar/example.txt\"}"  | jq -r '.task')
     Non-staff users, lacking read access to the `artifacts` endpoint, may encounter restricted
     functionality as they are prohibited from listing artifacts uploaded to Pulp and utilizing
     them within the build process.
+
+
+### From repository_version
+
+```bash
+ARTIFACT_SHA256=$(http :$ARTIFACT_HREF | jq -r '.sha256')
+pulp file repository create --name bar
+
+REPO_VERSION=$(pulp file content create --relative-path foo/bar/example.txt \
+--sha256 $ARTIFACT_SHA256 --repository bar | jq .pulp_href)
+
+TASK_HREF=$(http --form POST  :$REPO_HREF'build_image/' -F "containerfile@./Containerfile" \
+repo_version=$REPO_VERSION | jq -r '.task')
+```
