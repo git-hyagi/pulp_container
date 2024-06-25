@@ -19,7 +19,6 @@ from pulpcore.plugin.models import Artifact, Task
 from pulp_container.constants import (
     MANIFEST_MEDIA_TYPES,
     MEDIA_TYPE,
-    REPOSITORY_NOT_FOUND_AFTER_FILTER,
 )
 from pulp_container.app.exceptions import ManifestInvalid, RepositoryNotFound
 from pulp_container.app.json_schemas import (
@@ -352,5 +351,5 @@ def filter_repo(remote):
     repo_name = remote.namespaced_upstream_name
     filtered_repo = filter_resource(remote, [repo_name])
     if len(filtered_repo) == 0:
-        raise RepositoryNotFound(message=REPOSITORY_NOT_FOUND_AFTER_FILTER)
+        raise RepositoryNotFound(name=repo_name)
     return filtered_repo[0]

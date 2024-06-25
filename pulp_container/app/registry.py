@@ -406,10 +406,7 @@ class PullThroughDownloader:
         return raw_text_data, digest, media_type
 
     async def run_manifest_downloader(self):
-        try:
-            repo_name = filter_repo(self.remote)
-        except RepositoryNotFound:
-            raise
+        repo_name = self.remote.namespaced_upstream_name
         if self.downloader is None:
             relative_url = "/v2/{name}/manifests/{identifier}".format(
                 name=repo_name, identifier=self.identifier

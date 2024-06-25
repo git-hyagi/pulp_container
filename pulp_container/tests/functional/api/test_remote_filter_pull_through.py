@@ -55,7 +55,7 @@ def pull_and_verify(
                     local_registry.pull(local_image_path)
                 assert (
                     re.search(
-                        ".*No repository found for the defined remote filters.*",
+                        ".*Repository not found.*",
                         capfd.readouterr().err,
                     )
                     is not None
