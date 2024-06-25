@@ -1,5 +1,4 @@
 from gettext import gettext as _
-import os
 import re
 
 from django.core.validators import URLValidator
@@ -750,11 +749,10 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
     tag = serializers.CharField(
         required=False, default="latest", help_text="A tag name for the new image being built."
     )
-    artifacts = serializers.JSONField(
+    repo_version = RepositoryVersionRelatedField(
         required=False,
-        help_text="A JSON string where each key is an artifact href and the value is it's "
-        "relative path (name) inside the /pulp_working_directory of the build container "
-        "executing the Containerfile.",
+        help_text=_("RepositoryVersion to be used as the build context for container images."),
+        allow_null=True,
     )
 
     def __init__(self, *args, **kwargs):
@@ -778,28 +776,10 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             raise serializers.ValidationError(
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
-        artifacts = {}
-        if "artifacts" in data:
-            for url, relative_path in data["artifacts"].items():
-                if os.path.isabs(relative_path):
-                    raise serializers.ValidationError(
-                        _("Relative path cannot start with '/'. " "{0}").format(relative_path)
-                    )
-                artifactfield = RelatedField(
-                    view_name="artifacts-detail",
-                    queryset=Artifact.objects.all(),
-                    source="*",
-                    initial=url,
-                )
-                try:
-                    artifact = artifactfield.run_validation(data=url)
-                    artifact.touch()
-                    artifacts[str(artifact.pk)] = relative_path
-                except serializers.ValidationError as e:
-                    # Append the URL of missing Artifact to the error message
-                    e.detail[0] = "%s %s" % (e.detail[0], url)
-                    raise e
-        data["artifacts"] = artifacts
+
+        if "repo_version" in data:
+            data["repo_version"] = data["repo_version"].pk
+
         return data
 
     class Meta:
@@ -808,7 +788,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             "containerfile",
             "repository",
             "tag",
-            "artifacts",
+            "repo_version",
         )
 
 
