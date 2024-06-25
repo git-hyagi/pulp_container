@@ -35,6 +35,11 @@ from pulp_container.tests.functional.utils import (
 )
 
 from pulp_container.tests.functional.constants import REGISTRY_V2_FEED_URL, PULP_HELLO_WORLD_REPO
+from pulpcore.client.pulp_file import (
+    ApiClient as FileApiClient,
+    RepositoriesFileApi,
+    ContentFilesApi,
+)
 
 
 def gen_container_remote(url=REGISTRY_V2_FEED_URL, **kwargs):
@@ -428,3 +433,49 @@ def container_sync(container_repository_api, monitor_task):
         return monitor_task(sync_response.task)
 
     return _sync
+
+
+@pytest.fixture
+def pull_through_distribution(
+    gen_object_with_cleanup,
+    container_pull_through_remote_api,
+    container_pull_through_distribution_api,
+):
+    def _pull_through_distribution(includes=None, excludes=None):
+        remote = gen_object_with_cleanup(
+            container_pull_through_remote_api,
+            {
+                "name": str(uuid4()),
+                "url": REGISTRY_V2_FEED_URL,
+                "includes": includes,
+                "excludes": excludes,
+            },
+        )
+        distribution = gen_object_with_cleanup(
+            container_pull_through_distribution_api,
+            {"name": str(uuid4()), "base_path": str(uuid4()), "remote": remote.pulp_href},
+        )
+        return distribution
+
+    return _pull_through_distribution
+
+
+# Fixtures for File plugin
+
+
+@pytest.fixture(scope="session")
+def file_client(bindings_cfg):
+    """Fixture for container_client."""
+    return FileApiClient(bindings_cfg)
+
+
+@pytest.fixture(scope="session")
+def file_repository_api(file_client):
+    """File repository API fixture."""
+    return RepositoriesFileApi(file_client)
+
+
+@pytest.fixture(scope="session")
+def file_content_api(file_client):
+    """File content API fixture."""
+    return ContentFilesApi(file_client)

@@ -696,6 +696,7 @@ class ContainerRepositoryViewSet(
                 "condition": [
                     "has_model_or_obj_perms:container.build_image_containerrepository",
                     "has_model_or_obj_perms:container.view_containerrepository",
+                    "has_repository_model_or_obj_perms:file.view_filerepository",
                 ],
             },
             {
