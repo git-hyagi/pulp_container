@@ -946,8 +946,15 @@ class ContainerRepositoryViewSet(
             containerfile.touch()
         tag = serializer.validated_data["tag"]
 
-        artifacts = serializer.validated_data["artifacts"]
-        Artifact.objects.filter(pk__in=artifacts.keys()).touch()
+        build_context_content = {}
+        if serializer.validated_data.get("artifacts"):
+            artifacts = serializer.validated_data["artifacts"]
+            Artifact.objects.filter(pk__in=artifacts.keys()).touch()
+            build_context_content["artifacts"] = artifacts
+        else:
+            version_href = serializer.validated_data["repository_version"]
+            RepositoryVersion.objects.filter(pk__in=version_href)
+            build_context_content["repository_version"] = version_href
 
         result = dispatch(
             tasks.build_image_from_containerfile,
@@ -956,7 +963,7 @@ class ContainerRepositoryViewSet(
                 "containerfile_pk": str(containerfile.pk),
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "artifacts": artifacts,
+                **build_context_content,
             },
         )
         return OperationPostponedResponse(result, request)

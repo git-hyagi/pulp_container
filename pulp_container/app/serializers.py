@@ -780,6 +780,10 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
         "relative path (name) inside the /pulp_working_directory of the build container "
         "executing the Containerfile.",
     )
+    repository_version = serializers.JSONField(
+        required=False,
+        help_text="version_href to use as the build context",
+    )
 
     def __init__(self, *args, **kwargs):
         """Initializer for OCIBuildImageSerializer."""
@@ -802,6 +806,12 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             raise serializers.ValidationError(
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
+
+        if not(bool("artifacts" in data) ^ bool("repository_version" in data)):
+            raise serializers.ValidationError(
+                _("Only one of 'artifacts' or 'repository_version' should be provided!")
+            )
+
         artifacts = {}
         if "artifacts" in data:
             for url, relative_path in data["artifacts"].items():
@@ -823,7 +833,19 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     # Append the URL of missing Artifact to the error message
                     e.detail[0] = "%s %s" % (e.detail[0], url)
                     raise e
-        data["artifacts"] = artifacts
+            data["artifacts"] = artifacts
+
+        if "repository_version" in data:
+            source_repository_version = NestedRelatedField(
+                help_text=_("A URI of the repository version to copy content from."),
+                view_name="versions-detail",
+                lookup_field="number",
+                parent_lookup_kwargs={"repository_pk": "repository__pk"},
+                queryset=RepositoryVersion.objects.all(),
+                required=False,
+            )
+            data["repository_version"] = source_repository_version
+
         return data
 
     class Meta:

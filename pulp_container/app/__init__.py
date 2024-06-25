@@ -1,6 +1,11 @@
 from pulpcore.plugin import PulpPluginAppConfig
 
-
+try:
+    import debugpy
+    debugpy.listen(('0.0.0.0',5678))
+    debugpy.wait_for_client()
+except:
+    pass
 class PulpContainerPluginAppConfig(PulpPluginAppConfig):
     """Entry point for the container plugin."""
 

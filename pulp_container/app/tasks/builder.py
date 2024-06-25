@@ -96,7 +96,7 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
-    containerfile_pk=None, artifacts=None, repository_pk=None, tag=None
+    containerfile_pk=None, artifacts=None, repository_pk=None, tag=None, version_href=None
 ):
     """
     Builds an OCI container image from a Containerfile.
@@ -133,7 +133,7 @@ def build_image_from_containerfile(
             with open(dest_path, "wb") as dest:
                 shutil.copyfileobj(artifact.file, dest)
 
-            containerfile_path = os.path.join(working_directory, "Containerfile")
+        containerfile_path = os.path.join(working_directory, "Containerfile")
 
         with open(containerfile_path, "wb") as dest:
             shutil.copyfileobj(containerfile.file, dest)
