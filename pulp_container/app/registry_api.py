@@ -1113,7 +1113,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
     def fetch_manifest(self, remote, pk):
         try:
             repo_name = filter_repo(remote)
-        except InvalidRequest:
+        except RepositoryNotFound:
             raise
         relative_url = "/v2/{name}/manifests/{pk}".format(
             name=repo_name, pk=pk
