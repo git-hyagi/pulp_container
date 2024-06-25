@@ -1,0 +1,2 @@
+Support for utilizing raw artifacts, as the build context and for the Containerfile,
+during image builds has been removed.
