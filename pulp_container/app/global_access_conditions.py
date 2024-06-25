@@ -1,10 +1,12 @@
 from logging import getLogger
 
-from pulpcore.plugin.models import Repository
+from pulpcore.plugin.models import Repository, RepositoryVersion
+from pulpcore.plugin.util import get_objects_for_user
 from pulpcore.plugin.viewsets import RepositoryVersionViewSet
 
 from pulp_container.app import models
 from pulp_container.app.viewsets import ContainerDistributionViewSet
+from pulp_container.app import serializers
 
 _logger = getLogger(__name__)
 
@@ -118,3 +120,17 @@ def has_distribution_perms(request, view, action, permission):
     return any(
         (request.user.has_perm(permission, distribution.cast()) for distribution in distributions)
     )
+
+
+def has_file_repo_perms(request, view, action, permission):
+    serializer = serializers.OCIBuildImageSerializer(
+        data=request.data, context={"request": request}
+    )
+    serializer.is_valid(raise_exception=True)
+    repo_version = serializer.validated_data.get("repo_version", None)
+    if not repo_version:
+        return True
+
+    repo_version_qs = RepositoryVersion.objects.filter(pk=repo_version)
+    file_repositories = get_objects_for_user(request.user, permission, repo_version_qs)
+    return repo_version_qs == file_repositories

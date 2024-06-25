@@ -1,3 +1,5 @@
+from gettext import gettext as _
+
 import json
 import os
 import shutil
@@ -14,7 +16,10 @@ from pulp_container.app.models import (
 )
 from pulp_container.constants import MEDIA_TYPE
 from pulp_container.app.utils import calculate_digest
-from pulpcore.plugin.models import Artifact, ContentArtifact, Content
+from pulpcore.plugin.models import Artifact, ContentArtifact, Content, RepositoryVersion
+from pulp_file.app.models import FileContent
+
+from rest_framework.serializers import ValidationError
 
 
 def get_or_create_blob(layer_json, manifest, path):
@@ -96,7 +101,7 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
-    containerfile_pk=None, artifacts=None, repository_pk=None, tag=None
+    containerfile_pk=None, artifacts=None, repository_pk=None, tag=None, repo_version=None
 ):
     """
     Builds an OCI container image from a Containerfile.
@@ -111,6 +116,8 @@ def build_image_from_containerfile(
                           container executing the Containerfile.
         repository_pk (str): The pk of a Repository to add the OCI container image
         tag (str): Tag name for the new image in the repository
+        repo_version: The pk of a RepositoryVersion with the artifacts used in the build context
+                      of the Containerfile.
 
     Returns:
         A class:`pulpcore.plugin.models.RepositoryVersion` that contains the new OCI container
@@ -124,6 +131,18 @@ def build_image_from_containerfile(
         working_directory = os.path.abspath(working_directory)
         context_path = os.path.join(working_directory, "context")
         os.makedirs(context_path, exist_ok=True)
+
+        if repo_version:
+            artifacts = {}
+            repo_version_artifacts = RepositoryVersion.objects.get(pk=repo_version).artifacts
+            files = FileContent.objects.filter(
+                digest__in=repo_version_artifacts.values("sha256")
+            ).values("_artifacts__pk", "relative_path")
+            if len(files) == 0:
+                raise ValidationError(_("No file found for the specified repository version."))
+            for file in files:
+                artifacts[str(file["_artifacts__pk"])] = file["relative_path"]
+
         for key, val in artifacts.items():
             artifact = Artifact.objects.get(pk=key)
             dest_path = os.path.join(context_path, val)

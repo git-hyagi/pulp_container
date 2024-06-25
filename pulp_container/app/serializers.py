@@ -756,6 +756,11 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
         "relative path (name) inside the /pulp_working_directory of the build container "
         "executing the Containerfile.",
     )
+    repo_version = RepositoryVersionRelatedField(
+        required=False,
+        help_text=_("RepositoryVersion to be used as the build context for container images."),
+        allow_null=True,
+    )
 
     def __init__(self, *args, **kwargs):
         """Initializer for OCIBuildImageSerializer."""
@@ -778,6 +783,12 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             raise serializers.ValidationError(
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
+
+        if not (("artifacts" in data) ^ ("repo_version" in data)):
+            raise serializers.ValidationError(
+                _("Only one of 'artifacts' or 'repo_version' should be provided!")
+            )
+
         artifacts = {}
         if "artifacts" in data:
             for url, relative_path in data["artifacts"].items():
@@ -800,6 +811,9 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     e.detail[0] = "%s %s" % (e.detail[0], url)
                     raise e
         data["artifacts"] = artifacts
+        if "repo_version" in data:
+            data["repo_version"] = data["repo_version"].pk
+
         return data
 
     class Meta:
@@ -809,6 +823,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             "repository",
             "tag",
             "artifacts",
+            "repo_version",
         )
 
 
