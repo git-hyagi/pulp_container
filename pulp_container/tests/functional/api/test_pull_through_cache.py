@@ -13,23 +13,6 @@ from pulp_container.tests.functional.constants import (
 
 
 @pytest.fixture
-def pull_through_distribution(
-    gen_object_with_cleanup,
-    container_pull_through_remote_api,
-    container_pull_through_distribution_api,
-):
-    remote = gen_object_with_cleanup(
-        container_pull_through_remote_api,
-        {"name": str(uuid4()), "url": REGISTRY_V2_FEED_URL},
-    )
-    distribution = gen_object_with_cleanup(
-        container_pull_through_distribution_api,
-        {"name": str(uuid4()), "base_path": str(uuid4()), "remote": remote.pulp_href},
-    )
-    return distribution
-
-
-@pytest.fixture
 def pull_and_verify(
     add_to_cleanup,
     container_pull_through_distribution_api,
@@ -42,6 +25,7 @@ def pull_and_verify(
 ):
     def _pull_and_verify(images, pull_through_distribution):
         tags_to_verify = []
+        pull_through_distribution = pull_through_distribution()
         for version, image_path in enumerate(images, start=1):
             remote_image_path = f"{REGISTRY_V2}/{image_path}"
             local_image_path = f"{pull_through_distribution.base_path}/{image_path}"
@@ -113,6 +97,7 @@ def test_conflicting_names_and_paths(
     local_registry,
     monitor_task,
 ):
+    pull_through_distribution = pull_through_distribution()
     local_image_path = f"{pull_through_distribution.base_path}/{str(uuid4())}"
 
     remote = container_remote_factory(name=local_image_path)

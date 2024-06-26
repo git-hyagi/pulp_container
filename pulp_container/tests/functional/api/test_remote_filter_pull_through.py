@@ -13,31 +13,6 @@ from pulp_container.tests.functional.constants import (
 
 
 @pytest.fixture
-def pull_through_distribution(
-    gen_object_with_cleanup,
-    container_pull_through_remote_api,
-    container_pull_through_distribution_api,
-):
-    def _pull_through_distribution(includes, excludes):
-        remote = gen_object_with_cleanup(
-            container_pull_through_remote_api,
-            {
-                "name": str(uuid4()),
-                "url": REGISTRY_V2_FEED_URL,
-                "includes": includes,
-                "excludes": excludes,
-            },
-        )
-        distribution = gen_object_with_cleanup(
-            container_pull_through_distribution_api,
-            {"name": str(uuid4()), "base_path": str(uuid4()), "remote": remote.pulp_href},
-        )
-        return distribution
-
-    return _pull_through_distribution
-
-
-@pytest.fixture
 def pull_and_verify(
     capfd,
     delete_orphans_pre,

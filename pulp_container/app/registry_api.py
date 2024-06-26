@@ -105,6 +105,8 @@ IGNORED_PULL_THROUGH_REMOTE_ATTRIBUTES = [
     "pulp_id",
     "url",
     "name",
+    "includes",
+    "excludes",
 ]
 
 
@@ -326,12 +328,6 @@ class ContainerRegistryApiMixin:
                 )
 
                 remote_data = _get_pull_through_remote_data(pull_through_cache_distribution)
-
-                # remove filter fields from ContainerPullThroughRemote that are not present in
-                # ContainerRemote to avoid raising a FieldError exception
-                remote_data.pop("includes", None)
-                remote_data.pop("excludes", None)
-
                 upstream_name = path.split(pull_through_cache_distribution.base_path, maxsplit=1)[1]
                 remote, _ = models.ContainerRemote.objects.get_or_create(
                     name=path,

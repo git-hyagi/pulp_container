@@ -349,4 +349,4 @@ def filter_resources(element_list, include_patterns, exclude_patterns):
         element_list = filter(partial(include, patterns=include_patterns), element_list)
     if exclude_patterns:
         element_list = filter(partial(exclude, patterns=exclude_patterns), element_list)
-    return element_list
+    return list(element_list)
