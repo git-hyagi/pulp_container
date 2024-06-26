@@ -72,7 +72,7 @@ def pull_and_verify(
 
 def test_no_filter(pull_through_distribution, pull_and_verify):
     images = [f"{PULP_FIXTURE_1}:manifest_a", f"{PULP_FIXTURE_1}:manifest_b"]
-    includes = []
+    includes = None
     excludes = []
     pull_and_verify(images, pull_through_distribution, includes, excludes)
 

@@ -355,8 +355,6 @@ class ContainerRemote(Remote, AutoAddObjPermsMixin):
         exclude_tags (fields.ArrayField): List of tags to exclude during sync.
         sigstore (models.TextField): The URL to a sigstore where signatures of container images
             should be synced from.
-        includes (models.JSONField): Dictionary of repositories to include. [default=null]
-        excludes (models.JSONField): Dictionary of repositories to exclude. [default=null]
     """
 
     upstream_name = models.TextField(db_index=True)
@@ -364,8 +362,6 @@ class ContainerRemote(Remote, AutoAddObjPermsMixin):
     include_tags = fields.ArrayField(models.TextField(null=True), null=True)
     exclude_tags = fields.ArrayField(models.TextField(null=True), null=True)
     sigstore = models.TextField(null=True)
-    includes = models.JSONField(null=True)
-    excludes = models.JSONField(null=True)
 
     TYPE = "container"
 

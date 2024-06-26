@@ -33,7 +33,7 @@ from pulp_container.app.utils import (
     determine_media_type,
     validate_manifest,
     calculate_digest,
-    filter_resource,
+    filter_resources,
     get_content_data,
 )
 
@@ -118,7 +118,9 @@ class ContainerFirstStage(Stage):
             repo_name = self.remote.namespaced_upstream_name
             tag_list_url = "/v2/{name}/tags/list".format(name=repo_name)
             tag_list = await self.get_paginated_tag_list(tag_list_url, repo_name)
-            tag_list = filter_resource(self.remote, tag_list, True)
+            tag_list = filter_resources(
+                tag_list, self.remote.include_tags, self.remote.exclude_tags
+            )
             await pb.aincrement()
 
         for tag_name in tag_list:

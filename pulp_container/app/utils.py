@@ -12,6 +12,7 @@ from asgiref.sync import sync_to_async
 from jsonschema import Draft7Validator, validate, ValidationError
 from django.core.files.storage import default_storage as storage
 from django.db import IntegrityError
+from functools import partial
 from rest_framework.exceptions import Throttled
 
 from pulpcore.plugin.models import Artifact, Task
@@ -315,41 +316,37 @@ def get_content_data(saved_artifact):
     return content_data, raw_data
 
 
-def filter_resource(remote, element_list, tags=False):
+def include(x, patterns):
     """
-    Filter tags or repos by a list of included and/or excluded definition(s).
+    Checks if any item from `patterns` matches x, meaning it should be included as a remote repo.
     """
-    if tags:
-        include = remote.include_tags
-        exclude = remote.exclude_tags
-    else:
-        include = remote.includes
-        exclude = remote.excludes
+    return any(fnmatch.fnmatch(x, pattern) for pattern in patterns)
 
-    if include:
-        element_list = [
-            item
-            for item in element_list
-            if any(fnmatch.fnmatch(item, pattern) for pattern in include)
-        ]
 
-    if exclude:
-        element_list = [
-            item
-            for item in element_list
-            if not any(fnmatch.fnmatch(item, pattern) for pattern in exclude)
-        ]
+def exclude(x, patterns):
+    """
+    Checks if any item from `patterns` matches x, meaning it should not be considered a remote repo.
+    """
+    return not include(x, patterns)
 
+
+def filter_resource(element, include_patterns, exclude_patterns):
+    """
+    Verify if the repository should have access to the remote upstream based on the include_patterns
+    and exclude_patterns filters.
+    """
+    if not (include_patterns or []) and not (exclude_patterns or []):
+        return True
+    return include(element, include_patterns or []) and exclude(element, exclude_patterns or [])
+
+
+def filter_resources(element_list, include_patterns, exclude_patterns):
+    """
+    Returns a list of elements (tags or repositories) allowed to be pulled/synced based on
+    include_patterns and exclude_patterns filters.
+    """
+    if include_patterns:
+        element_list = filter(partial(include, patterns=include_patterns), element_list)
+    if exclude_patterns:
+        element_list = filter(partial(exclude, patterns=exclude_patterns), element_list)
     return element_list
-
-
-def filter_repo(remote):
-    """
-    Filter repositories and return the name of the repository or an exception in cases none is
-    found after applying the filter.
-    """
-    repo_name = remote.namespaced_upstream_name
-    filtered_repo = filter_resource(remote, [repo_name])
-    if len(filtered_repo) == 0:
-        raise RepositoryNotFound(name=repo_name)
-    return filtered_repo[0]

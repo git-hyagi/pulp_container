@@ -82,7 +82,7 @@ from pulp_container.app.token_verification import (
 from pulp_container.app.utils import (
     determine_media_type,
     extract_data_from_signature,
-    filter_repo,
+    filter_resource,
     has_task_completed,
     validate_manifest,
 )
@@ -310,6 +310,15 @@ class ContainerRegistryApiMixin:
         if not pull_through_cache_distribution:
             raise RepositoryNotFound(name=path)
 
+        pull_through_remote = models.ContainerPullThroughRemote.objects.get(
+            pk=pull_through_cache_distribution.remote
+        )
+        has_access = filter_resource(
+            path, pull_through_remote.includes, pull_through_remote.excludes
+        )
+        if not has_access:
+            raise RepositoryNotFound(name=path)
+
         try:
             with transaction.atomic():
                 repository, _ = models.ContainerRepository.objects.get_or_create(
@@ -317,6 +326,12 @@ class ContainerRegistryApiMixin:
                 )
 
                 remote_data = _get_pull_through_remote_data(pull_through_cache_distribution)
+
+                # remove filter fields from ContainerPullThroughRemote that are not present in
+                # ContainerRemote to avoid raising a FieldError exception
+                remote_data.pop("includes", None)
+                remote_data.pop("excludes", None)
+
                 upstream_name = path.split(pull_through_cache_distribution.base_path, maxsplit=1)[1]
                 remote, _ = models.ContainerRemote.objects.get_or_create(
                     name=path,
@@ -1111,11 +1126,9 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
         return add_content_units
 
     def fetch_manifest(self, remote, pk):
-        try:
-            repo_name = filter_repo(remote)
-        except RepositoryNotFound:
-            raise
-        relative_url = "/v2/{name}/manifests/{pk}".format(name=repo_name, pk=pk)
+        relative_url = "/v2/{name}/manifests/{pk}".format(
+            name=remote.namespaced_upstream_name, pk=pk
+        )
         tag_url = urljoin(remote.url, relative_url)
         downloader = remote.get_downloader(url=tag_url)
         try:
