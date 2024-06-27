@@ -32,6 +32,7 @@ from pulpcore.plugin.serializers import (
 
 from pulp_container.app import models
 from pulp_container.constants import SIGNATURE_TYPE
+from pulp_file.app.models import FileContent
 
 VALID_SIGNATURE_NAME_REGEX = r"^sha256:[0-9a-f]{64}@[0-9a-f]{32}$"
 VALID_TAG_REGEX = r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
@@ -780,9 +781,8 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
         "relative path (name) inside the /pulp_working_directory of the build container "
         "executing the Containerfile.",
     )
-    repository_version = serializers.JSONField(
-        required=False,
-        help_text="version_href to use as the build context",
+    repo_version = RepositoryVersionRelatedField(
+        required=False, help_text=_("RepositoryVersion to be served"), allow_null=True
     )
 
     def __init__(self, *args, **kwargs):
@@ -807,9 +807,9 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
 
-        if not(bool("artifacts" in data) ^ bool("repository_version" in data)):
+        if not(("artifacts" in data) ^ ("repo_version" in data)):
             raise serializers.ValidationError(
-                _("Only one of 'artifacts' or 'repository_version' should be provided!")
+                _("Only one of 'artifacts' or 'repo_version' should be provided!")
             )
 
         artifacts = {}
@@ -833,18 +833,17 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     # Append the URL of missing Artifact to the error message
                     e.detail[0] = "%s %s" % (e.detail[0], url)
                     raise e
-            data["artifacts"] = artifacts
 
-        if "repository_version" in data:
-            source_repository_version = NestedRelatedField(
-                help_text=_("A URI of the repository version to copy content from."),
-                view_name="versions-detail",
-                lookup_field="number",
-                parent_lookup_kwargs={"repository_pk": "repository__pk"},
-                queryset=RepositoryVersion.objects.all(),
-                required=False,
-            )
-            data["repository_version"] = source_repository_version
+        if "repo_version" in data:
+            version_href = data["repo_version"]
+            for artifact in RepositoryVersion.objects.get(pk=version_href.pk).artifacts:
+                try:
+                    relative_path = FileContent.objects.get(digest=artifact.sha256).relative_path
+                    artifacts[str(artifact.pk)] = relative_path
+                except FileContent.DoesNotExist:
+                    raise serializers.ValidationError(_("Only File Repositories are supported!"))
+
+        data["artifacts"] = artifacts
 
         return data
 
@@ -855,6 +854,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             "repository",
             "tag",
             "artifacts",
+            "repo_version",
         )
 
 

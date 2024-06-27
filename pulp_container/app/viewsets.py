@@ -696,6 +696,7 @@ class ContainerRepositoryViewSet(
                 "condition": [
                     "has_model_or_obj_perms:container.build_image_containerrepository",
                     "has_model_or_obj_perms:container.view_containerrepository",
+                    "has_repository_model_or_obj_perms:file.view_filerepository",
                 ],
             },
             {
@@ -951,10 +952,6 @@ class ContainerRepositoryViewSet(
             artifacts = serializer.validated_data["artifacts"]
             Artifact.objects.filter(pk__in=artifacts.keys()).touch()
             build_context_content["artifacts"] = artifacts
-        else:
-            version_href = serializer.validated_data["repository_version"]
-            RepositoryVersion.objects.filter(pk__in=version_href)
-            build_context_content["repository_version"] = version_href
 
         result = dispatch(
             tasks.build_image_from_containerfile,
@@ -963,7 +960,7 @@ class ContainerRepositoryViewSet(
                 "containerfile_pk": str(containerfile.pk),
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                **build_context_content,
+                "artifacts": artifacts,
             },
         )
         return OperationPostponedResponse(result, request)
