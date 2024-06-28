@@ -307,8 +307,30 @@ class ContainerPullThroughRemoteSerializer(RemoteSerializer):
     """
 
     policy = serializers.ChoiceField(choices=[Remote.ON_DEMAND], default=Remote.ON_DEMAND)
-    includes = serializers.JSONField(required=False, allow_null=True)
-    excludes = serializers.JSONField(required=False, allow_null=True)
+    includes = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        allow_null=True,
+        required=False,
+        help_text=_(
+            """
+            A list of remotes to include during pull-through caching.
+            Wildcards *, ? are recognized.
+            'includes' is evaluated before 'excludes'.
+            """
+        ),
+    )
+    excludes = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        allow_null=True,
+        required=False,
+        help_text=_(
+            """
+            A list of remotes to exclude during pull-through caching.
+            Wildcards *, ? are recognized.
+            'excludes' is evaluated after 'includes'.
+            """
+        ),
+    )
 
     class Meta:
         fields = RemoteSerializer.Meta.fields + ("includes", "excludes")

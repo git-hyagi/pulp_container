@@ -312,11 +312,12 @@ class ContainerRegistryApiMixin:
         if not pull_through_cache_distribution:
             raise RepositoryNotFound(name=path)
 
+        upstream_name = path.split(pull_through_cache_distribution.base_path, maxsplit=1)[1]
         pull_through_remote = models.ContainerPullThroughRemote.objects.filter(
             pk=pull_through_cache_distribution.remote_id
         ).values()[0]
         if not filter_resource(
-            path, pull_through_remote.get("includes"), pull_through_remote.get("excludes")
+            upstream_name, pull_through_remote.get("includes"), pull_through_remote.get("excludes")
         ):
             raise RepositoryNotFound(name=path)
 
@@ -327,7 +328,6 @@ class ContainerRegistryApiMixin:
                 )
 
                 remote_data = _get_pull_through_remote_data(pull_through_remote)
-                upstream_name = path.split(pull_through_cache_distribution.base_path, maxsplit=1)[1]
                 remote, _ = models.ContainerRemote.objects.get_or_create(
                     name=path,
                     upstream_name=upstream_name.strip("/"),
