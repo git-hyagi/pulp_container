@@ -35,6 +35,7 @@ from pulp_container.tests.functional.utils import (
 )
 
 from pulp_container.tests.functional.constants import REGISTRY_V2_FEED_URL, PULP_HELLO_WORLD_REPO
+from pulpcore.tests.functional.utils import BindingsNamespace
 
 
 def gen_container_remote(url=REGISTRY_V2_FEED_URL, **kwargs):
@@ -453,3 +454,31 @@ def pull_through_distribution(
         return distribution
 
     return _pull_through_distribution
+
+
+@pytest.fixture(scope="session")
+def file_bindings(_api_client_set, bindings_cfg):
+    """
+    A namespace providing preconfigured pulp_file api clients.
+
+    e.g. `file_bindings.RepositoriesFileApi.list()`.
+    """
+    from pulpcore.client import pulp_file as file_bindings_module
+
+    api_client = file_bindings_module.ApiClient(bindings_cfg)
+    _api_client_set.add(api_client)
+    yield BindingsNamespace(file_bindings_module, api_client)
+    _api_client_set.remove(api_client)
+
+
+@pytest.fixture
+def file_content_factory(file_bindings, monitor_task):
+    def _file_content_factory(artifact,name,repo):
+        artifact_attrs = {"artifact": artifact.pulp_href, "relative_path": name, "repository": repo}
+        return file_bindings.ContentFilesApi.read(
+            monitor_task(
+                file_bindings.ContentFilesApi.create(**artifact_attrs).task
+            ).created_resources[0]
+        )
+
+    return _file_content_factory
