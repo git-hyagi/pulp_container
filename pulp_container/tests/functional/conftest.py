@@ -36,6 +36,11 @@ from pulp_container.tests.functional.utils import (
 
 from pulp_container.tests.functional.constants import REGISTRY_V2_FEED_URL, PULP_HELLO_WORLD_REPO
 from pulpcore.tests.functional.utils import BindingsNamespace
+from pulpcore.client.pulp_file import (
+    ApiClient as FileApiClient,
+    RepositoriesFileApi,
+    ContentFilesApi,
+)
 
 
 def gen_container_remote(url=REGISTRY_V2_FEED_URL, **kwargs):
@@ -473,7 +478,7 @@ def file_bindings(_api_client_set, bindings_cfg):
 
 @pytest.fixture
 def file_content_factory(file_bindings, monitor_task):
-    def _file_content_factory(artifact,name,repo):
+    def _file_content_factory(artifact, name, repo):
         artifact_attrs = {"artifact": artifact.pulp_href, "relative_path": name, "repository": repo}
         return file_bindings.ContentFilesApi.read(
             monitor_task(
@@ -482,3 +487,24 @@ def file_content_factory(file_bindings, monitor_task):
         )
 
     return _file_content_factory
+
+
+## Fixtures for File plugin
+
+
+@pytest.fixture(scope="session")
+def file_client(bindings_cfg):
+    """Fixture for container_client."""
+    return FileApiClient(bindings_cfg)
+
+
+@pytest.fixture(scope="session")
+def file_repository_api(file_client):
+    """File repository API fixture."""
+    return RepositoriesFileApi(file_client)
+
+
+@pytest.fixture(scope="session")
+def file_content_api(file_client):
+    """File content API fixture."""
+    return ContentFilesApi(file_client)

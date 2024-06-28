@@ -13,6 +13,8 @@ from pulpcore.client.pulp_container import (
     ContainerContainerRepository,
 )
 
+from pulpcore.client.pulp_file import FileFileContent, FileFileRepository
+
 
 @pytest.fixture
 def containerfile_name():
@@ -68,8 +70,10 @@ def test_build_image_from_repo_version(
     containerfile_name,
     container_distribution_api,
     container_repository_api,
-    file_content_factory,
-    file_repository_factory,
+    # file_content_factory,
+    # file_repository_factory,
+    file_content_api,
+    file_repository_api,
     gen_object_with_cleanup,
     local_registry,
 ):
@@ -83,8 +87,17 @@ def test_build_image_from_repo_version(
         container_repository_api, ContainerContainerRepository(**gen_repo())
     )
 
-    file_repository = file_repository_factory(None,{"name": "foo"})
-    repo_version = file_content_factory(artifact=artifact.digest, name="foo/bar/example.txt", repo=file_repository)
+    # file_repository = file_repository_factory(None,{"name": "foo"})
+    # repo_version = file_content_factory(artifact=artifact.digest, name="foo/bar/example.txt", repo=file_repository)
+    file_repository = gen_object_with_cleanup(file_repository_api, FileFileRepository(**gen_repo()))
+    repo_version = gen_object_with_cleanup(
+        file_content_api,
+        FileFileContent(
+            artifact=artifact.sha256,
+            relative_path="foo/bar/example.txt",
+            repository=file_repository,
+        ),
+    )
 
     build_response = container_repository_api.build_image(
         containerfile=containerfile_name, repo_version=repo_version.pulp_href

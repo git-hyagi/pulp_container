@@ -807,7 +807,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
 
-        if not(("artifacts" in data) ^ ("repo_version" in data)):
+        if not (("artifacts" in data) ^ ("repo_version" in data)):
             raise serializers.ValidationError(
                 _("Only one of 'artifacts' or 'repo_version' should be provided!")
             )
@@ -836,6 +836,11 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
 
         if "repo_version" in data:
             version_href = data["repo_version"]
+            # try to find a better way to get the file names instead of doing a get in each artifact (which would do a db query for each artifact)
+            # repo_version = RepositoryVersion.objects.get(pk=version_href.pk)
+            # for artifact in repo_version.artifacts:
+            #    relative_path = repo_version.content.get(file_filecontent__digest=artifact.sha256)
+            #    relative_path = relative_path.file_filecontent.relative_path
             for artifact in RepositoryVersion.objects.get(pk=version_href.pk).artifacts:
                 try:
                     relative_path = FileContent.objects.get(digest=artifact.sha256).relative_path
