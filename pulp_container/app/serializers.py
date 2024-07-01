@@ -840,12 +840,16 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             # for artifact in repo_version.artifacts:
             #    relative_path = repo_version.content.get(file_filecontent__digest=artifact.sha256)
             #    relative_path = relative_path.file_filecontent.relative_path
-            for artifact in RepositoryVersion.objects.get(pk=version_href.pk).artifacts:
-                try:
-                    relative_path = FileContent.objects.get(digest=artifact.sha256).relative_path
-                    artifacts[str(artifact.pk)] = relative_path
-                except FileContent.DoesNotExist:
-                    raise serializers.ValidationError(_("Only File Repositories are supported!"))
+            #for artifact in RepositoryVersion.objects.get(pk=version_href.pk).artifacts:
+            #    try:
+            #        relative_path = FileContent.objects.get(digest=artifact.sha256).relative_path
+            #        artifacts[str(artifact.pk)] = relative_path
+            #    except FileContent.DoesNotExist:
+            #        raise serializers.ValidationError(_("Only File Repositories are supported!"))
+            repo_version_artifacts = RepositoryVersion.objects.get(pk=version_href.pk).artifacts
+            files = FileContent.objects.filter(digest__in=repo_version_artifacts.values('sha256')).values('_artifacts__pk','relative_path')
+            for file in files:
+                artifacts[str(file['_artifacts__pk'])] = file['relative_path']
 
         data["artifacts"] = artifacts
 
