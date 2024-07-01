@@ -836,7 +836,6 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
 
         if "repo_version" in data:
             version_href = data["repo_version"]
-            # try to find a better way to get the file names instead of doing a get in each artifact (which would do a db query for each artifact)
             # repo_version = RepositoryVersion.objects.get(pk=version_href.pk)
             # for artifact in repo_version.artifacts:
             #    relative_path = repo_version.content.get(file_filecontent__digest=artifact.sha256)

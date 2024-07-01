@@ -947,11 +947,8 @@ class ContainerRepositoryViewSet(
             containerfile.touch()
         tag = serializer.validated_data["tag"]
 
-        build_context_content = {}
-        if serializer.validated_data.get("artifacts"):
-            artifacts = serializer.validated_data["artifacts"]
-            Artifact.objects.filter(pk__in=artifacts.keys()).touch()
-            build_context_content["artifacts"] = artifacts
+        artifacts = serializer.validated_data["artifacts"]
+        Artifact.objects.filter(pk__in=artifacts.keys()).touch()
 
         result = dispatch(
             tasks.build_image_from_containerfile,

@@ -13,7 +13,9 @@ from pulpcore.client.pulp_container import (
     ContainerContainerRepository,
 )
 
-from pulpcore.client.pulp_file import FileFileContent, FileFileRepository
+from pulpcore.client.pulp_file import (
+    RepositoryAddRemoveContent,
+)
 
 
 @pytest.fixture
@@ -66,41 +68,34 @@ def test_build_image_from_artifact(
 
 
 def test_build_image_from_repo_version(
-    artifacts_api_client,
     containerfile_name,
     container_distribution_api,
     container_repository_api,
-    # file_content_factory,
-    # file_repository_factory,
-    file_content_api,
-    file_repository_api,
+    file_bindings,
+    file_content_unit_with_name_factory,
+    file_repo_with_auto_publish,
     gen_object_with_cleanup,
     local_registry,
 ):
     """Test if a user can build an OCI image."""
-    with NamedTemporaryFile() as text_file:
-        text_file.write(b"some text")
-        text_file.flush()
-        artifact = gen_object_with_cleanup(artifacts_api_client, text_file.name)
-
     repository = gen_object_with_cleanup(
         container_repository_api, ContainerContainerRepository(**gen_repo())
     )
 
-    # file_repository = file_repository_factory(None,{"name": "foo"})
-    # repo_version = file_content_factory(artifact=artifact.digest, name="foo/bar/example.txt", repo=file_repository)
-    file_repository = gen_object_with_cleanup(file_repository_api, FileFileRepository(**gen_repo()))
-    repo_version = gen_object_with_cleanup(
-        file_content_api,
-        FileFileContent(
-            artifact=artifact.sha256,
-            relative_path="foo/bar/example.txt",
-            repository=file_repository,
-        ),
+    files = {
+        "txt": file_content_unit_with_name_factory("foo/bar/example.txt"),
+    }
+
+    units_to_add = list(map(lambda f: f.pulp_href, files.values()))
+    data = RepositoryAddRemoveContent(add_content_units=units_to_add)
+    monitor_task(
+        file_bindings.RepositoriesFileApi.modify(file_repo_with_auto_publish.pulp_href, data).task
     )
 
     build_response = container_repository_api.build_image(
-        containerfile=containerfile_name, repo_version=repo_version.pulp_href
+        containerfile=containerfile_name,
+        repo_version=f"{file_repo_with_auto_publish.pulp_href}versions/1/",
+        container_container_repository_href=repository.pulp_href,
     )
     monitor_task(build_response.task)
 
