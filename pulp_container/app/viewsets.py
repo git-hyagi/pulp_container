@@ -628,7 +628,6 @@ class ContainerRepositoryViewSet(
     """
     ViewSet for container repo.
     """
-
     endpoint_name = "container"
     queryset = models.ContainerRepository.objects.all()
     serializer_class = serializers.ContainerRepositorySerializer
@@ -696,6 +695,7 @@ class ContainerRepositoryViewSet(
                 "condition": [
                     "has_model_or_obj_perms:container.build_image_containerrepository",
                     "has_model_or_obj_perms:container.view_containerrepository",
+                    "has_file_repository_perms:file.view_filerepository"
                 ],
             },
             {
