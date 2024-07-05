@@ -836,20 +836,23 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     e.detail[0] = "%s %s" % (e.detail[0], url)
                     raise e
 
-        if "repo_version" in data:
-            version_href = data["repo_version"]
-            repo_version_artifacts = RepositoryVersion.objects.get(pk=version_href.pk).artifacts
-            files = FileContent.objects.filter(
-                digest__in=repo_version_artifacts.values("sha256")
-            ).values("_artifacts__pk", "relative_path")
-            if len(files) == 0:
-                raise serializers.ValidationError(
-                    _("No file found for the specified repository version.")
-                )
-            for file in files:
-                artifacts[str(file["_artifacts__pk"])] = file["relative_path"]
+        #if "repo_version" in data:
+        #    version_href = data["repo_version"]
+        #    repo_version_artifacts = RepositoryVersion.objects.get(pk=version_href.pk).artifacts
+        #    files = FileContent.objects.filter(
+        #        digest__in=repo_version_artifacts.values("sha256")
+        #    ).values("_artifacts__pk", "relative_path")
+        #    if len(files) == 0:
+        #        raise serializers.ValidationError(
+        #            _("No file found for the specified repository version.")
+        #        )
+        #    for file in files:
+        #        artifacts[str(file["_artifacts__pk"])] = file["relative_path"]
 
         data["artifacts"] = artifacts
+        if "repo_version" in data:
+            data["repo_version"] = data["repo_version"].pk
+
         return data
 
     class Meta:

@@ -9,6 +9,7 @@ from pulp_smash.pulp3.utils import (
 from pulp_smash.pulp3.bindings import monitor_task
 
 from pulpcore.client.pulp_container import (
+    ApiException,
     ContainerContainerDistribution,
     ContainerContainerRepository,
 )
@@ -72,6 +73,7 @@ def test_build_image_from_repo_version(
     file_bindings,
     file_content_unit_with_name_factory,
     file_repo_with_auto_publish,
+    gen_user,
     gen_object_with_cleanup,
     local_registry,
 ):
@@ -105,3 +107,15 @@ def test_build_image_from_repo_version(
     local_registry.pull(distribution.base_path)
     image = local_registry.inspect(distribution.base_path)
     assert image[0]["Config"]["Cmd"] == ["cat", "/tmp/inside-image.txt"]
+
+
+    user_helpless = gen_user()
+    with user_helpless, pytest.raises(ApiException):
+        container_repository_api.build_image(
+            containerfile=containerfile_name,
+            repo_version=f"{file_repo_with_auto_publish.pulp_href}versions/1/",
+            container_container_repository_href=repository.pulp_href,
+        )
+    
+    #with user_creator:
+    #    container_repository_api.build_image()
