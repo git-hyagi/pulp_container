@@ -4,6 +4,7 @@ Check `Plugin Writer's Guide`_ for more details.
 . _Plugin Writer's Guide:
     http://docs.pulpproject.org/plugins/plugin-writer/index.html
 """
+from gettext import gettext as _
 
 import logging
 
@@ -15,6 +16,7 @@ from drf_spectacular.utils import extend_schema
 
 from rest_framework import mixins
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 
 from pulpcore.plugin.models import RepositoryVersion
 from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
@@ -628,6 +630,7 @@ class ContainerRepositoryViewSet(
     """
     ViewSet for container repo.
     """
+
     endpoint_name = "container"
     queryset = models.ContainerRepository.objects.all()
     serializer_class = serializers.ContainerRepositorySerializer
@@ -695,7 +698,6 @@ class ContainerRepositoryViewSet(
                 "condition": [
                     "has_model_or_obj_perms:container.build_image_containerrepository",
                     "has_model_or_obj_perms:container.view_containerrepository",
-                    "has_file_repository_perms:file.view_filerepository"
                 ],
             },
             {
@@ -952,6 +954,7 @@ class ContainerRepositoryViewSet(
             Artifact.objects.filter(pk__in=artifacts.keys()).touch()
         elif serializer.validated_data.get("repo_version"):
             repo_version = serializer.validated_data["repo_version"]
+            self._check_file_repo_permission(request, repo_version)
 
         result = dispatch(
             tasks.build_image_from_containerfile,
@@ -965,6 +968,19 @@ class ContainerRepositoryViewSet(
             },
         )
         return OperationPostponedResponse(result, request)
+
+    def _check_file_repo_permission(self, request, repo_version):
+        repo_version_qs = RepositoryVersion.objects.filter(pk=repo_version)
+        file_repositories = get_objects_for_user(
+            self.request.user, "file.view_filerepository", repo_version_qs
+        )
+        if repo_version_qs != file_repositories:
+            raise PermissionDenied(
+                detail=_(
+                    f"User {self.request.user} does not have permission on file repository "
+                    f"{request.data['repo_version']}"
+                )
+            )
 
 
 class ContainerRepositoryVersionViewSet(RepositoryVersionViewSet):

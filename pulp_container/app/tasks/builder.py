@@ -16,7 +16,7 @@ from pulp_container.app.models import (
 )
 from pulp_container.constants import MEDIA_TYPE
 from pulp_container.app.utils import calculate_digest
-from pulpcore.plugin.models import Artifact, ContentArtifact, Content,RepositoryVersion
+from pulpcore.plugin.models import Artifact, ContentArtifact, Content, RepositoryVersion
 from pulp_file.app.models import FileContent
 
 from rest_framework.serializers import ValidationError
@@ -139,9 +139,7 @@ def build_image_from_containerfile(
                 digest__in=repo_version_artifacts.values("sha256")
             ).values("_artifacts__pk", "relative_path")
             if len(files) == 0:
-                raise ValidationError(
-                    _("No file found for the specified repository version.")
-                )
+                raise ValidationError(_("No file found for the specified repository version."))
             for file in files:
                 artifacts[str(file["_artifacts__pk"])] = file["relative_path"]
 

@@ -8,6 +8,7 @@ from pulp_container.app.viewsets import ContainerDistributionViewSet
 
 _logger = getLogger(__name__)
 
+
 def has_namespace_obj_perms(request, view, action, permission):
     """
     Check if a user has object-level perms on the namespace associated with the distribution
@@ -117,16 +118,3 @@ def has_distribution_perms(request, view, action, permission):
     return any(
         (request.user.has_perm(permission, distribution.cast()) for distribution in distributions)
     )
-
-def has_file_repository_perms(request, view, action, permission):
-    """
-    Check if a user has permissions on the corresponding file repository.
-    """
-
-    if request.user.has_perm(permission):
-        return True
-    if "repository_pk" in view.kwargs:
-        repository = RepositoryVersionViewSet.objects.get(pk=view.kwargs["repository_pk"])
-    else:
-        repository = view.get_object()
-    return request.user.has_perm(permission,repository)

@@ -32,7 +32,6 @@ from pulpcore.plugin.serializers import (
 
 from pulp_container.app import models
 from pulp_container.constants import SIGNATURE_TYPE
-from pulp_file.app.models import FileContent
 
 VALID_SIGNATURE_NAME_REGEX = r"^sha256:[0-9a-f]{64}@[0-9a-f]{32}$"
 VALID_TAG_REGEX = r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
@@ -835,20 +834,6 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     # Append the URL of missing Artifact to the error message
                     e.detail[0] = "%s %s" % (e.detail[0], url)
                     raise e
-
-        #if "repo_version" in data:
-        #    version_href = data["repo_version"]
-        #    repo_version_artifacts = RepositoryVersion.objects.get(pk=version_href.pk).artifacts
-        #    files = FileContent.objects.filter(
-        #        digest__in=repo_version_artifacts.values("sha256")
-        #    ).values("_artifacts__pk", "relative_path")
-        #    if len(files) == 0:
-        #        raise serializers.ValidationError(
-        #            _("No file found for the specified repository version.")
-        #        )
-        #    for file in files:
-        #        artifacts[str(file["_artifacts__pk"])] = file["relative_path"]
-
         data["artifacts"] = artifacts
         if "repo_version" in data:
             data["repo_version"] = data["repo_version"].pk
