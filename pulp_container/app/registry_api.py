@@ -87,17 +87,19 @@ from pulp_container.app.utils import (
     filter_resource,
     has_task_completed,
     validate_manifest,
+    resource_body_size_exceeded_msg,
 )
 from pulp_container.constants import (
     EMPTY_BLOB,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
-    SIGNATURE_PAYLOAD_MAX_SIZE,
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
+    MEGABYTE,
 )
 
 log = logging.getLogger(__name__)
+
 
 IGNORED_PULL_THROUGH_REMOTE_ATTRIBUTES = [
     "remote_ptr",
@@ -790,7 +792,9 @@ class BlobUploads(ContainerRegistryApiMixin, ViewSet):
         with transaction.atomic():
             # 1 chunk, create artifact right away
             with NamedTemporaryFile("ab") as temp_file:
-                temp_file.write(chunk.read())
+                while chunk and chunk.reader.length > 0:
+                    current_chunk = chunk.reader.read(MEGABYTE)
+                    temp_file.write(current_chunk)
                 temp_file.flush()
 
                 uploaded_file = PulpTemporaryUploadedFile.from_file(
@@ -1379,8 +1383,16 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
                 subchunk = chunk.read(2000000)
                 if not subchunk:
                     break
-                temp_file.write(subchunk)
                 size += len(subchunk)
+                manifest_payload_max_size = settings.get("MANIFEST_PAYLOAD_MAX_SIZE", None)
+                if manifest_payload_max_size and size > manifest_payload_max_size:
+                    temp_file.flush()
+                    raise InvalidRequest(
+                        message=resource_body_size_exceeded_msg(
+                            "Manifest", manifest_payload_max_size
+                        )
+                    )
+                temp_file.write(subchunk)
                 for algorithm in Artifact.DIGEST_FIELDS:
                     hashers[algorithm].update(subchunk)
             temp_file.flush()
@@ -1451,9 +1463,18 @@ class Signatures(ContainerRegistryApiMixin, ViewSet):
         except models.Manifest.DoesNotExist:
             raise ManifestNotFound(reference=pk)
 
-        signature_payload = request.META["wsgi.input"].read(SIGNATURE_PAYLOAD_MAX_SIZE)
+        signature_max_size = settings.get("SIGNATURE_PAYLOAD_MAX_SIZE", None)
+        if signature_max_size:
+            meta = request.META
+            try:
+                content_length = int(meta.get("CONTENT_LENGTH", meta.get("HTTP_CONTENT_LENGTH", 0)))
+            except (ValueError, TypeError):
+                content_length = 0
+            if content_length > signature_max_size:
+                raise ManifestSignatureInvalid(digest=pk)
+
         try:
-            signature_dict = json.loads(signature_payload)
+            signature_dict = json.loads(request.stream.body)
         except json.decoder.JSONDecodeError:
             raise ManifestSignatureInvalid(digest=pk)
 
