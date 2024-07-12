@@ -91,7 +91,6 @@ from pulp_container.constants import (
     EMPTY_BLOB,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
-    SIGNATURE_PAYLOAD_MAX_SIZE,
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
 )
@@ -1426,7 +1425,7 @@ class Signatures(ContainerRegistryApiMixin, ViewSet):
         except models.Manifest.DoesNotExist:
             raise ManifestNotFound(reference=pk)
 
-        signature_payload = request.META["wsgi.input"].read(SIGNATURE_PAYLOAD_MAX_SIZE)
+        signature_payload = request.META["wsgi.input"].read()
         try:
             signature_dict = json.loads(signature_payload)
         except json.decoder.JSONDecodeError:
