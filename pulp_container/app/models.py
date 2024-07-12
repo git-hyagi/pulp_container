@@ -751,6 +751,8 @@ class ContainerDistribution(Distribution, AutoAddObjPermsMixin):
         null=True,
     )
 
+    max_payload_size = models.IntegerField(null=True)
+
     def get_repository_version(self):
         """
         Returns the repository version that is supposed to be served by this ContainerDistribution.
