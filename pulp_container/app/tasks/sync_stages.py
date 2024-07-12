@@ -15,6 +15,7 @@ from pulp_container.constants import (
     MEDIA_TYPE,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
+    SIGNATURE_PAYLOAD_MAX_SIZE,
     SIGNATURE_SOURCE,
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
@@ -35,7 +36,10 @@ from pulp_container.app.utils import (
     calculate_digest,
     filter_resources,
     get_content_data,
+    is_signature_size_valid,
 )
+
+from pulp_container.app.exceptions import ManifestSignatureInvalid
 
 log = logging.getLogger(__name__)
 
@@ -545,6 +549,14 @@ class ContainerFirstStage(Stage):
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
 
+                if not is_signature_size_valid(signature_download_result.path):
+                    log.info(
+                        "Signature size is not valid, the max allowed size is {}.".format(
+                            SIGNATURE_PAYLOAD_MAX_SIZE
+                        )
+                    )
+                    raise ManifestSignatureInvalid(digest=man_digest_reformatted)
+
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()
 
@@ -566,7 +578,12 @@ class ContainerFirstStage(Stage):
             # signature extensions endpoint does not like any unnecessary headers to be sent
             await signatures_downloader.run(extra_data={"headers": {}})
             with open(signatures_downloader.path) as signatures_fd:
-                api_extension_signatures = json.loads(signatures_fd.read())
+                try:
+                    api_extension_signatures = json.loads(
+                        signatures_fd.read(SIGNATURE_PAYLOAD_MAX_SIZE)
+                    )
+                except json.decoder.JSONDecodeError:
+                    raise ManifestSignatureInvalid(digest=man_dc.content.digest)
             for signature in api_extension_signatures.get("signatures", []):
                 if (
                     signature.get("schemaVersion") == SIGNATURE_API_EXTENSION_VERSION
