@@ -55,15 +55,7 @@ def create_file_and_container_repos_with_sample_data(
 
 @pytest.fixture
 def build_image(container_repository_api):
-    def _build_image(repository, containerfile, artifacts=None, repo_version=None):
-        # workaround for drf-spectacular not allowing artifacts=None and raising an exception
-        # (a bytes-like object is required, not 'NoneType')
-        if artifacts:
-            return container_repository_api.build_image(
-                container_container_repository_href=repository,
-                containerfile=containerfile,
-                artifacts=artifacts,
-            )
+    def _build_image(repository, containerfile, repo_version=None):
         return container_repository_api.build_image(
             container_container_repository_href=repository,
             containerfile=containerfile,
@@ -73,42 +65,7 @@ def build_image(container_repository_api):
     return _build_image
 
 
-def test_build_image_from_artifact(
-    build_image,
-    pulpcore_bindings,
-    container_repository_api,
-    container_distribution_api,
-    gen_object_with_cleanup,
-    containerfile_name,
-    local_registry,
-):
-    """Test build an OCI image from an artifact."""
-    with NamedTemporaryFile() as text_file:
-        text_file.write(b"some text")
-        text_file.flush()
-        artifact = gen_object_with_cleanup(pulpcore_bindings.ArtifactsApi, text_file.name)
-
-    repository = gen_object_with_cleanup(
-        container_repository_api, ContainerContainerRepository(**gen_repo())
-    )
-
-    artifacts = '{{"{}": "foo/bar/example.txt"}}'.format(artifact.pulp_href)
-    build_response = build_image(
-        repository.pulp_href, containerfile=containerfile_name, artifacts=artifacts
-    )
-    monitor_task(build_response.task)
-
-    distribution = gen_object_with_cleanup(
-        container_distribution_api,
-        ContainerContainerDistribution(**gen_distribution(repository=repository.pulp_href)),
-    )
-
-    local_registry.pull(distribution.base_path)
-    image = local_registry.inspect(distribution.base_path)
-    assert image[0]["Config"]["Cmd"] == ["cat", "/tmp/inside-image.txt"]
-
-
-def test_build_image_from_repo_version(
+def test_build_image(
     build_image,
     containerfile_name,
     container_distribution_api,

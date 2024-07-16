@@ -947,12 +947,7 @@ class ContainerRepositoryViewSet(
             containerfile.touch()
         tag = serializer.validated_data["tag"]
 
-        artifacts, repo_version = None, None
-        if serializer.validated_data.get("artifacts"):
-            artifacts = serializer.validated_data["artifacts"]
-            Artifact.objects.filter(pk__in=artifacts.keys()).touch()
-        elif serializer.validated_data.get("repo_version"):
-            repo_version = serializer.validated_data["repo_version"]
+        repo_version = serializer.validated_data.get("repo_version", None)
 
         result = dispatch(
             tasks.build_image_from_containerfile,
@@ -961,7 +956,6 @@ class ContainerRepositoryViewSet(
                 "containerfile_pk": str(containerfile.pk),
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "artifacts": artifacts,
                 "repo_version": repo_version,
             },
         )

@@ -40,16 +40,6 @@ CMD ["cat", "/inside-image.txt"]' >> Containerfile
 
 ## Build an OCI image
 
-### From artifact
-
-```bash
-TASK_HREF=$(http --form POST :$REPO_HREF'build_image/' containerfile@./Containerfile \
-artifacts="{\"$ARTIFACT_HREF\": \"foo/bar/example.txt\"}"  | jq -r '.task')
-```
-
-
-### From repository_version
-
 ```bash
 ARTIFACT_SHA256=$(http :$ARTIFACT_HREF | jq -r '.sha256')
 pulp file repository create --name bar
@@ -60,3 +50,9 @@ REPO_VERSION=$(pulp file content create --relative-path foo/bar/example.txt \
 TASK_HREF=$(http --form POST :$REPO_HREF'build_image/' "containerfile@./Containerfile" \
 repo_version=$REPO_VERSION | jq -r '.task')
 ```
+
+
+!!! warning
+
+    File repositories synced with on-demand remotes will not automatically pull the missing artifacts.
+    Trying to build using a file that is not yet pulled will fail.
