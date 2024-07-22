@@ -119,20 +119,3 @@ def has_distribution_perms(request, view, action, permission):
     return any(
         (request.user.has_perm(permission, distribution.cast()) for distribution in distributions)
     )
-
-
-def has_repository_perms(request, view, action, permission):
-    """
-    Check if the user has permissions on the corresponding repository.
-    """
-    obj = view.get_object() if view.detail else None
-    context = {"request": request}
-    serializer = view.serializer_class(instance=obj, data=request.data, context=context)
-    serializer.is_valid(raise_exception=True)
-    repo_version = serializer.validated_data.get("repo_version", None)
-    if not repo_version:
-        return True
-
-    repo_version_qs = RepositoryVersion.objects.filter(pk=repo_version)
-    repositories = get_objects_for_user(request.user, permission, repo_version_qs)
-    return repo_version_qs == repositories

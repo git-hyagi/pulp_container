@@ -749,7 +749,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
     tag = serializers.CharField(
         required=False, default="latest", help_text="A tag name for the new image being built."
     )
-    repo_version = RepositoryVersionRelatedField(
+    repository_version = RepositoryVersionRelatedField(
         required=False,
         help_text=_("RepositoryVersion to be used as the build context for container images."),
         allow_null=True,
@@ -777,9 +777,6 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 _("'containerfile' or 'containerfile_artifact' must " "be specified.")
             )
 
-        if "repo_version" in data:
-            data["repo_version"] = data["repo_version"].pk
-
         return data
 
     class Meta:
@@ -788,7 +785,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             "containerfile",
             "repository",
             "tag",
-            "repo_version",
+            "repository_version",
         )
 
 

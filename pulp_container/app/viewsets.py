@@ -696,7 +696,7 @@ class ContainerRepositoryViewSet(
                 "condition": [
                     "has_model_or_obj_perms:container.build_image_containerrepository",
                     "has_model_or_obj_perms:container.view_containerrepository",
-                    "has_repository_perms:file.view_filerepository",
+                    "has_repo_or_repo_ver_param_model_or_obj_perms:file.view_filerepository",
                 ],
             },
             {
@@ -947,7 +947,7 @@ class ContainerRepositoryViewSet(
             containerfile.touch()
         tag = serializer.validated_data["tag"]
 
-        repo_version = serializer.validated_data.get("repo_version", None)
+        repo_version = serializer.validated_data.get("repository_version", None)
 
         result = dispatch(
             tasks.build_image_from_containerfile,
@@ -956,7 +956,7 @@ class ContainerRepositoryViewSet(
                 "containerfile_pk": str(containerfile.pk),
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "repo_version": repo_version,
+                "repo_version": repo_version.pk,
             },
         )
         return OperationPostponedResponse(result, request)

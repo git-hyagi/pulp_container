@@ -43,7 +43,7 @@ CMD ["cat", "/inside-image.txt"]' >> Containerfile
 
 ```bash
 TASK_HREF=$(http --form POST :$CONTAINER_REPO'build_image/' "containerfile@./Containerfile" \
-repo_version=${FILE_REPO}versions/1/ | jq -r '.task')
+repository_version=${FILE_REPO}versions/1/ | jq -r '.task')
 ```
 
 

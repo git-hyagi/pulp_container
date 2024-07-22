@@ -59,7 +59,7 @@ def build_image(container_repository_api):
         build_response = container_repository_api.build_image(
             container_container_repository_href=repository,
             containerfile=containerfile,
-            repo_version=repo_version,
+            repository_version=repo_version,
         )
         monitor_task(build_response.task)
 
@@ -80,7 +80,7 @@ def test_build_image(
     build_image(
         container_repo.pulp_href,
         containerfile_name,
-        repo_version=f"{file_repo.pulp_href}versions/1/",
+        repository_version=f"{file_repo.pulp_href}versions/1/",
     )
 
     distribution = gen_object_with_cleanup(
@@ -112,7 +112,7 @@ def test_build_image_from_repo_version_with_anon_user(
         build_image(
             container_repo.pulp_href,
             containerfile_name,
-            repo_version=f"{file_repo.pulp_href}versions/1/",
+            repository_version=f"{file_repo.pulp_href}versions/1/",
         )
 
 
@@ -136,5 +136,5 @@ def test_build_image_from_repo_version_with_creator_user(
         build_image(
             container_repo.pulp_href,
             containerfile_name,
-            repo_version=f"{file_repo.pulp_href}versions/1/",
+            repository_version=f"{file_repo.pulp_href}versions/1/",
         )

@@ -96,7 +96,7 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
-    containerfile_pk=None, repository_pk=None, tag=None, repo_version=None
+    containerfile_pk=None, repo_version=None, repository_pk=None, tag=None
 ):
     """
     Builds an OCI container image from a Containerfile.
