@@ -757,13 +757,12 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
     A repository must be specified, to which the container image content will be added.
     """
 
-    containerfile_artifact = RelatedField(
-        many=False,
-        lookup_field="pk",
-        view_name="artifacts-detail",
-        queryset=Artifact.objects.all(),
+    containerfile_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
         help_text=_(
-            "Artifact representing the Containerfile that should be used to run podman-build."
+            "Name of the Containerfile, from build_context, that should be used to run "
+            "podman-build."
         ),
     )
     containerfile = serializers.FileField(
@@ -782,24 +781,18 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
     def __init__(self, *args, **kwargs):
         """Initializer for OCIBuildImageSerializer."""
         super().__init__(*args, **kwargs)
-        self.fields["containerfile_artifact"].required = False
 
     def validate(self, data):
         """Validates that all the fields make sense."""
         data = super().validate(data)
 
-        if "containerfile" in data:
-            if "containerfile_artifact" in data:
-                raise serializers.ValidationError(
-                    _("Only one of 'containerfile' and 'containerfile_artifact' may be specified.")
-                )
-            data["containerfile_artifact"] = Artifact.init_and_validate(data.pop("containerfile"))
-        elif "containerfile_artifact" in data:
-            data["containerfile_artifact"].touch()
-        else:
+        if bool(data.get("containerfile", None)) == bool(data.get("containerfile_name", None)):
             raise serializers.ValidationError(
-                _("'containerfile' or 'containerfile_artifact' must " "be specified.")
+                _("'containerfile' or 'containerfile_name' must be specified.")
             )
+
+        if "containerfile" in data:
+            data["containerfile_artifact"] = Artifact.init_and_validate(data.pop("containerfile"))
 
         # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function expects
         # a "repo" or "repository_version" arguments, so we need to pass "build_context" as

@@ -10,6 +10,10 @@ Containerfile is the same as for a Dockerfile. The same REST API endpoint also a
 string that maps artifacts in Pulp to a filename. Any files passed in (via `build_context`) are
 available inside the build container at the path defined in File Content `relative-path`.
 
+It is possible to define the Containerfile in two ways:
+* from a [local file](site:pulp_container/docs/admin/guides/build-image#build-from-a-containerfile-uploaded-during-build-request) and pass it during build request
+* from an [existing file](site:pulp_container/docs/admin/guides/build-image#upload-the-containerfile-as-a-file-content) in the `build_context`
+
 ## Create a Container Repository
 
 ```bash
@@ -39,11 +43,30 @@ COPY foo/bar/example.txt /inside-image.txt
 CMD ["cat", "/inside-image.txt"]' >> Containerfile
 ```
 
-## Build an OCI image
+
+## Build from a Containerfile uploaded during build request
+
+### Build an OCI image with the "local" Containerfile
 
 ```bash
 TASK_HREF=$(http --form POST :$CONTAINER_REPO'build_image/' "containerfile@./Containerfile" \
 build_context=${FILE_REPO}versions/1/ | jq -r '.task')
+```
+
+
+## Upload the Containerfile to File Repository and use it to build
+
+### Upload the Containerfile as a File Content
+
+```bash
+pulp file content upload --relative-path MyContainerfile --file ./Containerfile --repository bar
+```
+
+### Build an OCI image from a Containerfile present in build_context
+
+```bash
+TASK_HREF=$(http --form POST :$CONTAINER_REPO'build_image/' containerfile_name=MyContainerfile \
+build_context=${FILE_REPO}versions/2/ | jq -r '.task')
 ```
 
 

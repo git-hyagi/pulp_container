@@ -939,24 +939,31 @@ class ContainerRepositoryViewSet(
 
         serializer.is_valid(raise_exception=True)
 
-        containerfile = serializer.validated_data["containerfile_artifact"]
-        try:
-            containerfile.save()
-        except IntegrityError:
-            containerfile = Artifact.objects.get(sha256=containerfile.sha256)
-            containerfile.touch()
-        tag = serializer.validated_data["tag"]
+        containerfile_pk = None
+        if containerfile := serializer.validated_data.get("containerfile_artifact", None):
+            try:
+                containerfile.save()
+            except IntegrityError:
+                containerfile = Artifact.objects.get(sha256=containerfile.sha256)
+                containerfile.touch()
+            containerfile_pk = str(containerfile.pk)
 
-        build_context = serializer.validated_data.get("build_context", None)
+        tag = serializer.validated_data["tag"]
+        containerfile_name = serializer.validated_data.get("containerfile_name", None)
+
+        build_context_pk = None
+        if build_context := serializer.validated_data.get("build_context", None):
+            build_context_pk = build_context.pk
 
         result = dispatch(
             tasks.build_image_from_containerfile,
             exclusive_resources=[repository],
             kwargs={
-                "containerfile_pk": str(containerfile.pk),
+                "containerfile_name": containerfile_name,
+                "containerfile_pk": containerfile_pk,
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "build_context_pk": build_context.pk,
+                "build_context_pk": build_context_pk,
             },
         )
         return OperationPostponedResponse(result, request)

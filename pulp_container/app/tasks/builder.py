@@ -96,7 +96,11 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
-    containerfile_pk=None, build_context_pk=None, repository_pk=None, tag=None
+    containerfile_pk=None,
+    build_context_pk=None,
+    repository_pk=None,
+    tag=None,
+    containerfile_name=None,
 ):
     """
     Builds an OCI container image from a Containerfile.
@@ -116,7 +120,8 @@ def build_image_from_containerfile(
         image and tag.
 
     """
-    containerfile = Artifact.objects.get(pk=containerfile_pk)
+    if containerfile_pk:
+        containerfile = Artifact.objects.get(pk=containerfile_pk)
     repository = ContainerRepository.objects.get(pk=repository_pk)
     name = str(uuid4())
     with tempfile.TemporaryDirectory(dir=".") as working_directory:
@@ -135,9 +140,19 @@ def build_image_from_containerfile(
                         "It is not possible to use File content synced with on-demand "
                         "policy without pulling the data first."
                     )
+                if containerfile_name and content_artifact.relative_path == containerfile_name:
+                    containerfile = Artifact.objects.get(pk=content_artifact.artifact.pk)
+                    continue
                 _copy_file_from_artifact(
                     context_path, content_artifact.relative_path, content_artifact.artifact.file
                 )
+
+        try:
+            containerfile
+        except NameError:
+            raise RuntimeError(
+                '"' + containerfile_name + '" containerfile not found in build_context!'
+            )
 
         containerfile_path = os.path.join(working_directory, "Containerfile")
 
