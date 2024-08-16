@@ -18,7 +18,7 @@ from rest_framework.decorators import action
 
 from pulpcore.plugin.models import RepositoryVersion
 from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
-from pulpcore.plugin.models import Artifact, Content
+from pulpcore.plugin.models import Artifact, Content, PulpTemporaryFile
 from pulpcore.plugin.tasking import dispatch, general_multi_delete
 from pulpcore.plugin.util import (
     extract_pk,
@@ -944,7 +944,8 @@ class ContainerRepositoryViewSet(
             try:
                 containerfile.save()
             except IntegrityError:
-                containerfile = Artifact.objects.get(sha256=containerfile.sha256)
+                # containerfile = Artifact.objects.get(sha256=containerfile.sha256)
+                containerfile = PulpTemporaryFile.objects.get(pk=containerfile.pk)
                 containerfile.touch()
             containerfile_pk = str(containerfile.pk)
 

@@ -7,6 +7,7 @@ from rest_framework import serializers
 from pulpcore.plugin.models import (
     Artifact,
     ContentRedirectContentGuard,
+    PulpTemporaryFile,
     Remote,
     Repository,
     RepositoryVersion,
@@ -779,21 +780,19 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
         queryset=RepositoryVersion.objects.filter(repository__pulp_type="file.file"),
     )
 
-    def __init__(self, *args, **kwargs):
-        """Initializer for OCIBuildImageSerializer."""
-        super().__init__(*args, **kwargs)
-
     def validate(self, data):
         """Validates that all the fields make sense."""
         data = super().validate(data)
 
         if bool(data.get("containerfile", None)) == bool(data.get("containerfile_name", None)):
             raise serializers.ValidationError(
-                _("'containerfile' or 'containerfile_name' must be specified.")
+                _("Exactly one of 'containerfile' or 'containerfile_name' must be specified.")
             )
 
         if "containerfile" in data:
-            data["containerfile_artifact"] = Artifact.init_and_validate(data.pop("containerfile"))
+            data["containerfile_artifact"] = PulpTemporaryFile.init_and_validate(
+                data.pop("containerfile")
+            )
 
         if "containerfile_name" in data and "build_context" not in data:
             raise serializers.ValidationError(

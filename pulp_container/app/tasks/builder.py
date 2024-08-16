@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from uuid import uuid4
 
+from django.db import IntegrityError
 from pulp_container.app.models import (
     Blob,
     BlobManifest,
@@ -14,7 +15,13 @@ from pulp_container.app.models import (
 )
 from pulp_container.constants import MEDIA_TYPE
 from pulp_container.app.utils import calculate_digest
-from pulpcore.plugin.models import Artifact, ContentArtifact, Content, RepositoryVersion
+from pulpcore.plugin.models import (
+    Artifact,
+    ContentArtifact,
+    Content,
+    PulpTemporaryFile,
+    RepositoryVersion,
+)
 
 
 def get_or_create_blob(layer_json, manifest, path):
@@ -43,7 +50,7 @@ def get_or_create_blob(layer_json, manifest, path):
             artifact=layer_artifact, content=blob, relative_path=layer_json["digest"]
         ).save()
     if layer_json["mediaType"] != MEDIA_TYPE.CONFIG_BLOB_OCI:
-        BlobManifest(manifest=manifest, manifest_blob=blob).save()
+        BlobManifest.objects.update_or_create(manifest=manifest, manifest_blob=blob)
     return blob
 
 
@@ -68,15 +75,13 @@ def add_image_from_directory_to_repository(path, repository, tag):
     manifest_digest = calculate_digest(bytes_data)
     manifest_text_data = bytes_data.decode("utf-8")
 
-    manifest = Manifest(
+    manifest, _ = Manifest.objects.update_or_create(
         digest=manifest_digest,
         schema_version=2,
         media_type=MEDIA_TYPE.MANIFEST_OCI,
         data=manifest_text_data,
     )
-    manifest.save()
-    tag = Tag(name=tag, tagged_manifest=manifest)
-    tag.save()
+    tag, _ = Tag.objects.update_or_create(name=tag, tagged_manifest=manifest)
 
     with repository.new_version() as new_repo_version:
         manifest_json = json.loads(manifest_text_data)
@@ -122,13 +127,19 @@ def build_image_from_containerfile(
 
     """
     if containerfile_pk:
-        containerfile = Artifact.objects.get(pk=containerfile_pk)
+        # containerfile = Artifact.objects.get(pk=containerfile_pk)
+        containerfile = PulpTemporaryFile.objects.get(pk=containerfile_pk)
     repository = ContainerRepository.objects.get(pk=repository_pk)
     name = str(uuid4())
     with tempfile.TemporaryDirectory(dir=".") as working_directory:
         working_directory = os.path.abspath(working_directory)
         context_path = os.path.join(working_directory, "context")
         os.makedirs(context_path, exist_ok=True)
+
+        containerfile_path = os.path.join(working_directory, "Containerfile")
+        if containerfile_pk:
+            with open(containerfile_path, "wb") as dest:
+                shutil.copyfileobj(containerfile.file, dest)
 
         if build_context_pk:
             build_context = RepositoryVersion.objects.get(pk=build_context_pk)
@@ -141,12 +152,11 @@ def build_image_from_containerfile(
                         "It is not possible to use File content synced with on-demand "
                         "policy without pulling the data first."
                     )
+                file_dir, relative_path = context_path, content_artifact.relative_path
                 if containerfile_name and content_artifact.relative_path == containerfile_name:
                     containerfile = Artifact.objects.get(pk=content_artifact.artifact.pk)
-                    continue
-                _copy_file_from_artifact(
-                    context_path, content_artifact.relative_path, content_artifact.artifact.file
-                )
+                    file_dir, relative_path = working_directory, "Containerfile"
+                _copy_file_from_artifact(file_dir, relative_path, content_artifact.artifact.file)
 
         try:
             containerfile
@@ -155,10 +165,6 @@ def build_image_from_containerfile(
                 '"' + containerfile_name + '" containerfile not found in build_context!'
             )
 
-        containerfile_path = os.path.join(working_directory, "Containerfile")
-
-        with open(containerfile_path, "wb") as dest:
-            shutil.copyfileobj(containerfile.file, dest)
         bud_cp = subprocess.run(
             [
                 "podman",

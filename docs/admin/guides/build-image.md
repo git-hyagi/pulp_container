@@ -49,7 +49,7 @@ CMD ["cat", "/inside-image.txt"]' >> Containerfile
 ### Build an OCI image with the "local" Containerfile
 
 ```bash
-TASK_HREF=$(http --form POST :$CONTAINER_REPO'build_image/' "containerfile@./Containerfile" \
+TASK_HREF=$(http --form POST ${BASE_ADDR}${CONTAINER_REPO}'build_image/' "containerfile@./Containerfile" \
 build_context=${FILE_REPO}versions/1/ | jq -r '.task')
 ```
 
@@ -65,7 +65,7 @@ pulp file content upload --relative-path MyContainerfile --file ./Containerfile 
 ### Build an OCI image from a Containerfile present in build_context
 
 ```bash
-TASK_HREF=$(http --form POST :$CONTAINER_REPO'build_image/' containerfile_name=MyContainerfile \
+TASK_HREF=$(http --form POST ${BASE_ADDR}${CONTAINER_REPO}'build_image/' containerfile_name=MyContainerfile \
 build_context=${FILE_REPO}versions/2/ | jq -r '.task')
 ```
 
