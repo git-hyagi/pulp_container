@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from pulpcore.plugin.models import (
     Artifact,
+    ContentArtifact,
     ContentRedirectContentGuard,
     PulpTemporaryFile,
     Remote,
@@ -790,20 +791,54 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             )
 
         if "containerfile" in data:
-            data["containerfile_artifact"] = PulpTemporaryFile.init_and_validate(
-                data.pop("containerfile")
-            )
+            data["containerfile_temp_file"] = PulpTemporaryFile.objects.update_or_create(
+                file=data.pop("containerfile")
+            )[0]
 
         if "containerfile_name" in data and "build_context" not in data:
             raise serializers.ValidationError(
                 _("A 'build_context' must be specified when 'containerfile_name' is present.")
             )
 
-        # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function expects
-        # a "repo" or "repository_version" arguments, so we need to pass "build_context" as
-        # "repository_version" to be able to validate the permissions
-        if data.get("build_context", None):
+        # try:
+        #    import debugpy
+        #    debugpy.listen(('0.0.0.0',5678))
+        #    debugpy.wait_for_client()
+        # except:
+        #    pass
+        if build_context := data.get("build_context", None):
+            # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function expects
+            # a "repo" or "repository_version" arguments, so we need to pass "build_context" as
+            # "repository_version" to be able to validate the permissions
             data["repository_version"] = data["build_context"]
+
+            data["content_artifact"] = []
+            build_context = RepositoryVersion.objects.get(pk=build_context.pk)
+            content_artifacts = ContentArtifact.objects.filter(
+                content__pulp_type="file.file", content__in=build_context.content
+            ).order_by("-content__pulp_created")
+            for content_artifact in content_artifacts.select_related("artifact").iterator():
+                if not content_artifact.artifact:
+                    raise serializers.ValidationError(
+                        "It is not possible to use File content synced with on-demand "
+                        "policy without pulling the data first."
+                    )
+                # file_dir, relative_path = context_path, content_artifact.relative_path
+                containerfile_name = data.get("containerfile_name", None)
+                if containerfile_name and content_artifact.relative_path == containerfile_name:
+                    containerfile = Artifact.objects.get(pk=content_artifact.artifact.pk)
+                    data["containerfile"] = containerfile.pk
+
+                data["content_artifact"].append(content_artifact.pk)
+
+            if "containerfile_name" in data and "containerfile" not in data:
+                raise serializers.ValidationError(
+                    _(
+                        'Could not find the Containerfile "'
+                        + data["containerfile_name"]
+                        + '" in the build_context provided'
+                    )
+                )
 
         return data
 

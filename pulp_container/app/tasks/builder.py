@@ -126,9 +126,19 @@ def build_image_from_containerfile(
         image and tag.
 
     """
+
+    # todo: maybe use only containerfile_pk (discard containerfile_name) and do something like
+    # if isinstance(containerfile_pk, PulpTemporaryFile):
+    #    containerfile = PulpTemporaryFile.objects.get(pk=containerfile_pk)
+    # else:
+    #    containerfile = Artifact.objects.get(pk=containerfile_name)
+
     if containerfile_pk:
         # containerfile = Artifact.objects.get(pk=containerfile_pk)
         containerfile = PulpTemporaryFile.objects.get(pk=containerfile_pk)
+    else:
+        containerfile = Artifact.objects.get(pk=containerfile_name)
+
     repository = ContainerRepository.objects.get(pk=repository_pk)
     name = str(uuid4())
     with tempfile.TemporaryDirectory(dir=".") as working_directory:
@@ -137,32 +147,13 @@ def build_image_from_containerfile(
         os.makedirs(context_path, exist_ok=True)
 
         containerfile_path = os.path.join(working_directory, "Containerfile")
-        if containerfile_pk:
-            with open(containerfile_path, "wb") as dest:
-                shutil.copyfileobj(containerfile.file, dest)
+        with open(containerfile_path, "wb") as dest:
+            shutil.copyfileobj(containerfile.file, dest)
 
-        if build_context_pk:
-            build_context = RepositoryVersion.objects.get(pk=build_context_pk)
-            content_artifacts = ContentArtifact.objects.filter(
-                content__pulp_type="file.file", content__in=build_context.content
-            ).order_by("-content__pulp_created")
-            for content_artifact in content_artifacts.select_related("artifact").iterator():
-                if not content_artifact.artifact:
-                    raise RuntimeError(
-                        "It is not possible to use File content synced with on-demand "
-                        "policy without pulling the data first."
-                    )
-                file_dir, relative_path = context_path, content_artifact.relative_path
-                if containerfile_name and content_artifact.relative_path == containerfile_name:
-                    containerfile = Artifact.objects.get(pk=content_artifact.artifact.pk)
-                    file_dir, relative_path = working_directory, "Containerfile"
-                _copy_file_from_artifact(file_dir, relative_path, content_artifact.artifact.file)
-
-        try:
-            containerfile
-        except NameError:
-            raise RuntimeError(
-                '"' + containerfile_name + '" containerfile not found in build_context!'
+        content_artifacts = ContentArtifact.objects.filter(pk__in=build_context_pk)
+        for content_artifact in content_artifacts.select_related("artifact").iterator():
+            _copy_file_from_artifact(
+                context_path, content_artifact.relative_path, content_artifact.artifact.file
             )
 
         bud_cp = subprocess.run(

@@ -940,21 +940,17 @@ class ContainerRepositoryViewSet(
         serializer.is_valid(raise_exception=True)
 
         containerfile_pk = None
-        if containerfile := serializer.validated_data.get("containerfile_artifact", None):
-            try:
-                containerfile.save()
-            except IntegrityError:
-                # containerfile = Artifact.objects.get(sha256=containerfile.sha256)
-                containerfile = PulpTemporaryFile.objects.get(pk=containerfile.pk)
-                containerfile.touch()
+        if containerfile := serializer.validated_data.get("containerfile_temp_file", None):
             containerfile_pk = str(containerfile.pk)
 
         tag = serializer.validated_data["tag"]
-        containerfile_name = serializer.validated_data.get("containerfile_name", None)
+        containerfile_name = serializer.validated_data.get("containerfile", None)
+        # containerfile_name = serializer.validated_data.get("containerfile_name", None)
 
-        build_context_pk = None
-        if build_context := serializer.validated_data.get("build_context", None):
-            build_context_pk = build_context.pk
+        # build_context_pk = None
+        # if build_context := serializer.validated_data.get("build_context", None):
+        #    build_context_pk = build_context.pk
+        build_context_pk = serializer.validated_data.get("content_artifact", None)
 
         result = dispatch(
             tasks.build_image_from_containerfile,
