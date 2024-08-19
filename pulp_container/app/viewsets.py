@@ -939,28 +939,24 @@ class ContainerRepositoryViewSet(
 
         serializer.is_valid(raise_exception=True)
 
-        containerfile_pk = None
-        if containerfile := serializer.validated_data.get("containerfile_temp_file", None):
-            containerfile_pk = str(containerfile.pk)
+        containerfile_tempfile_pk = None
+        if containerfile := serializer.validated_data.get("containerfile", None):
+            temp_file = PulpTemporaryFile.objects.update_or_create(file=containerfile)[0]
+            containerfile_tempfile_pk = str(temp_file.pk)
 
+        containerfile_artifact_pk = serializer.validated_data.get("containerfile_artifact_pk", None)
+        content_artifact_pks = serializer.validated_data.get("content_artifact_pks", None)
         tag = serializer.validated_data["tag"]
-        containerfile_name = serializer.validated_data.get("containerfile", None)
-        # containerfile_name = serializer.validated_data.get("containerfile_name", None)
-
-        # build_context_pk = None
-        # if build_context := serializer.validated_data.get("build_context", None):
-        #    build_context_pk = build_context.pk
-        build_context_pk = serializer.validated_data.get("content_artifact", None)
 
         result = dispatch(
             tasks.build_image_from_containerfile,
             exclusive_resources=[repository],
             kwargs={
-                "containerfile_name": containerfile_name,
-                "containerfile_pk": containerfile_pk,
+                "containerfile_artifact_pk": str(containerfile_artifact_pk),
+                "containerfile_tempfile_pk": containerfile_tempfile_pk,
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "build_context_pk": build_context_pk,
+                "content_artifact_pks": content_artifact_pks,
             },
         )
         return OperationPostponedResponse(result, request)

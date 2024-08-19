@@ -790,29 +790,25 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 _("Exactly one of 'containerfile' or 'containerfile_name' must be specified.")
             )
 
-        if "containerfile" in data:
-            data["containerfile_temp_file"] = PulpTemporaryFile.objects.update_or_create(
-                file=data.pop("containerfile")
-            )[0]
-
         if "containerfile_name" in data and "build_context" not in data:
             raise serializers.ValidationError(
                 _("A 'build_context' must be specified when 'containerfile_name' is present.")
             )
 
-        # try:
-        #    import debugpy
-        #    debugpy.listen(('0.0.0.0',5678))
-        #    debugpy.wait_for_client()
-        # except:
-        #    pass
-        if build_context := data.get("build_context", None):
-            # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function expects
-            # a "repo" or "repository_version" arguments, so we need to pass "build_context" as
-            # "repository_version" to be able to validate the permissions
+        if data.get("build_context", None):
             data["repository_version"] = data["build_context"]
 
-            data["content_artifact"] = []
+        if self._is_permission_function_request():
+            # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function
+            # expects a "repo" or "repository_version" arguments, so we need to pass "build_context"
+            # as "repository_version" to be able to validate the permissions
+            data["repository_version"] = data["build_context"]
+
+            # return early because we don't need the following validations to check the permissions
+            return data
+
+        if build_context := data.get("build_context", None):
+            data["content_artifact_pks"] = []
             build_context = RepositoryVersion.objects.get(pk=build_context.pk)
             content_artifacts = ContentArtifact.objects.filter(
                 content__pulp_type="file.file", content__in=build_context.content
@@ -823,15 +819,16 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                         "It is not possible to use File content synced with on-demand "
                         "policy without pulling the data first."
                     )
-                # file_dir, relative_path = context_path, content_artifact.relative_path
                 containerfile_name = data.get("containerfile_name", None)
                 if containerfile_name and content_artifact.relative_path == containerfile_name:
-                    containerfile = Artifact.objects.get(pk=content_artifact.artifact.pk)
-                    data["containerfile"] = containerfile.pk
+                    artifact = Artifact.objects.get(pk=content_artifact.artifact.pk)
+                    data["containerfile_artifact_pk"] = artifact.pk
 
-                data["content_artifact"].append(content_artifact.pk)
+                data["content_artifact_pks"].append(content_artifact.pk)
 
-            if "containerfile_name" in data and "containerfile" not in data:
+            if data.get("containerfile_name") != "" and not data.get(
+                "containerfile_artifact_pk", None
+            ):
                 raise serializers.ValidationError(
                     _(
                         'Could not find the Containerfile "'
@@ -850,6 +847,16 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             "tag",
             "build_context",
         )
+
+    def _is_permission_function_request(self):
+        import inspect
+
+        is_perm_function_request = [
+            i
+            for i in inspect.stack()
+            if "has_repo_or_repo_ver_param_model_or_obj_perms" in i.function
+        ]
+        return is_perm_function_request
 
 
 class ContainerRepositorySyncURLSerializer(RepositorySyncURLSerializer):

@@ -1,5 +1,6 @@
 import pytest
 
+from rest_framework.exceptions import ValidationError
 from tempfile import NamedTemporaryFile
 
 from pulpcore.tests.functional.utils import PulpTaskError
@@ -133,8 +134,8 @@ def test_build_image_from_repo_version_with_creator_user(
     )
     with user:
         build_image(
-            container_repo.pulp_href,
-            containerfile_name,
+            repository=container_repo.pulp_href,
+            containerfile=containerfile_name,
             build_context=f"{populated_file_repo.pulp_href}versions/1/",
         )
 
@@ -191,3 +192,49 @@ def test_build_image_from_containerfile_name(
     local_registry.pull(distribution.base_path)
     image = local_registry.inspect(distribution.base_path)
     assert image[0]["Config"]["Cmd"] == ["cat", "/tmp/inside-image.txt"]
+
+
+def test_invalid_containerfile_from_build_context(
+    build_image,
+    container_repo,
+    populated_file_repo,
+):
+    """Test with a non-existing Containerfile in file repository."""
+    with pytest.raises(ApiException) as e:
+        build_image(
+            repository=container_repo.pulp_href,
+            containerfile_name="Non_existing_file",
+            build_context=f"{populated_file_repo.pulp_href}versions/2/",
+        )
+    assert "Could not find the Containerfile" in e.value.body
+
+
+def test_without_build_context(
+    build_image, container_distribution_api, container_repo, gen_object_with_cleanup, local_registry
+):
+    """Test build with only a Containerfile (no additional files)"""
+
+    def containerfile_without_context_files():
+        with NamedTemporaryFile() as containerfile:
+            containerfile.write(
+                b"""FROM quay.io/quay/busybox:latest
+# Print the content of the file when the container starts
+CMD ["ls", "/"]"""
+            )
+            containerfile.flush()
+            yield containerfile.name
+
+    containerfile_name = containerfile_without_context_files()
+    build_image(
+        repository=container_repo.pulp_href,
+        containerfile=next(containerfile_name),
+    )
+
+    distribution = gen_object_with_cleanup(
+        container_distribution_api,
+        ContainerContainerDistribution(**gen_distribution(repository=container_repo.pulp_href)),
+    )
+
+    local_registry.pull(distribution.base_path)
+    image = local_registry.inspect(distribution.base_path)
+    assert image[0]["Config"]["Cmd"] == ["ls", "/"]

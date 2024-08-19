@@ -101,11 +101,11 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
-    containerfile_pk=None,
-    build_context_pk=None,
+    containerfile_tempfile_pk=None,
+    content_artifact_pks=None,
     repository_pk=None,
     tag=None,
-    containerfile_name=None,
+    containerfile_artifact_pk=None,
 ):
     """
     Builds an OCI container image from a Containerfile.
@@ -126,18 +126,10 @@ def build_image_from_containerfile(
         image and tag.
 
     """
-
-    # todo: maybe use only containerfile_pk (discard containerfile_name) and do something like
-    # if isinstance(containerfile_pk, PulpTemporaryFile):
-    #    containerfile = PulpTemporaryFile.objects.get(pk=containerfile_pk)
-    # else:
-    #    containerfile = Artifact.objects.get(pk=containerfile_name)
-
-    if containerfile_pk:
-        # containerfile = Artifact.objects.get(pk=containerfile_pk)
-        containerfile = PulpTemporaryFile.objects.get(pk=containerfile_pk)
+    if containerfile_tempfile_pk:
+        containerfile = PulpTemporaryFile.objects.get(pk=containerfile_tempfile_pk)
     else:
-        containerfile = Artifact.objects.get(pk=containerfile_name)
+        containerfile = Artifact.objects.get(pk=containerfile_artifact_pk)
 
     repository = ContainerRepository.objects.get(pk=repository_pk)
     name = str(uuid4())
@@ -150,11 +142,14 @@ def build_image_from_containerfile(
         with open(containerfile_path, "wb") as dest:
             shutil.copyfileobj(containerfile.file, dest)
 
-        content_artifacts = ContentArtifact.objects.filter(pk__in=build_context_pk)
-        for content_artifact in content_artifacts.select_related("artifact").iterator():
-            _copy_file_from_artifact(
-                context_path, content_artifact.relative_path, content_artifact.artifact.file
-            )
+        # if content_artifact_pks == [] it means building a containerfile without needing any
+        # "extra files" (build_context files are not need)
+        if content_artifact_pks:
+            content_artifacts = ContentArtifact.objects.filter(pk__in=content_artifact_pks)
+            for content_artifact in content_artifacts.select_related("artifact").iterator():
+                _copy_file_from_artifact(
+                    context_path, content_artifact.relative_path, content_artifact.artifact.file
+                )
 
         bud_cp = subprocess.run(
             [
@@ -171,6 +166,12 @@ def build_image_from_containerfile(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+
+        # delete the PulpTemporaryFile instance because it will not be garbage collected
+        # by orphan cleanup like artifacts
+        if containerfile_tempfile_pk:
+            containerfile.delete()
+
         if bud_cp.returncode != 0:
             raise Exception(bud_cp.stderr)
         image_dir = os.path.join(working_directory, "image")
