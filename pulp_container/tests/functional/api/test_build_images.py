@@ -1,6 +1,5 @@
 import pytest
 
-from rest_framework.exceptions import ValidationError
 from tempfile import NamedTemporaryFile
 
 from pulpcore.tests.functional.utils import PulpTaskError

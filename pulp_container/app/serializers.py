@@ -8,7 +8,6 @@ from pulpcore.plugin.models import (
     Artifact,
     ContentArtifact,
     ContentRedirectContentGuard,
-    PulpTemporaryFile,
     Remote,
     Repository,
     RepositoryVersion,
@@ -795,23 +794,21 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 _("A 'build_context' must be specified when 'containerfile_name' is present.")
             )
 
-        if data.get("build_context", None):
-            data["repository_version"] = data["build_context"]
-
         if self._is_permission_function_request():
             # the "has_repo_or_repo_ver_param_model_or_obj_perms" permission condition function
             # expects a "repo" or "repository_version" arguments, so we need to pass "build_context"
             # as "repository_version" to be able to validate the permissions
-            data["repository_version"] = data["build_context"]
+            if data.get("build_context", None):
+                data["repository_version"] = data["build_context"]
 
-            # return early because we don't need the following validations to check the permissions
+            # return early, we don't need the remaining validations to check the permissions
             return data
 
         if build_context := data.get("build_context", None):
             data["content_artifact_pks"] = []
-            build_context = RepositoryVersion.objects.get(pk=build_context.pk)
+            repository_version = RepositoryVersion.objects.get(pk=build_context.pk)
             content_artifacts = ContentArtifact.objects.filter(
-                content__pulp_type="file.file", content__in=build_context.content
+                content__pulp_type="file.file", content__in=repository_version.content
             ).order_by("-content__pulp_created")
             for content_artifact in content_artifacts.select_related("artifact").iterator():
                 if not content_artifact.artifact:
@@ -822,7 +819,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                 containerfile_name = data.get("containerfile_name", None)
                 if containerfile_name and content_artifact.relative_path == containerfile_name:
                     artifact = Artifact.objects.get(pk=content_artifact.artifact.pk)
-                    data["containerfile_artifact_pk"] = artifact.pk
+                    data["containerfile_artifact_pk"] = str(artifact.pk)
 
                 data["content_artifact_pks"].append(content_artifact.pk)
 
@@ -839,15 +836,6 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
 
         return data
 
-    class Meta:
-        fields = (
-            "containerfile_artifact",
-            "containerfile",
-            "repository",
-            "tag",
-            "build_context",
-        )
-
     def _is_permission_function_request(self):
         import inspect
 
@@ -857,6 +845,15 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             if "has_repo_or_repo_ver_param_model_or_obj_perms" in i.function
         ]
         return is_perm_function_request
+
+    class Meta:
+        fields = (
+            "containerfile_name",
+            "containerfile",
+            "repository",
+            "tag",
+            "build_context",
+        )
 
 
 class ContainerRepositorySyncURLSerializer(RepositorySyncURLSerializer):

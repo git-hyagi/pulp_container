@@ -7,7 +7,6 @@ Check `Plugin Writer's Guide`_ for more details.
 
 import logging
 
-from django.db import IntegrityError
 from django.db.models import Q
 
 from django_filters import CharFilter, MultipleChoiceFilter
@@ -18,7 +17,7 @@ from rest_framework.decorators import action
 
 from pulpcore.plugin.models import RepositoryVersion
 from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
-from pulpcore.plugin.models import Artifact, Content, PulpTemporaryFile
+from pulpcore.plugin.models import Content, PulpTemporaryFile
 from pulpcore.plugin.tasking import dispatch, general_multi_delete
 from pulpcore.plugin.util import (
     extract_pk,
@@ -952,7 +951,7 @@ class ContainerRepositoryViewSet(
             tasks.build_image_from_containerfile,
             exclusive_resources=[repository],
             kwargs={
-                "containerfile_artifact_pk": str(containerfile_artifact_pk),
+                "containerfile_artifact_pk": containerfile_artifact_pk,
                 "containerfile_tempfile_pk": containerfile_tempfile_pk,
                 "tag": tag,
                 "repository_pk": str(repository.pk),

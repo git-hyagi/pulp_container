@@ -53,6 +53,11 @@ TASK_HREF=$(http --form POST ${BASE_ADDR}${CONTAINER_REPO}'build_image/' "contai
 build_context=${FILE_REPO}versions/1/ | jq -r '.task')
 ```
 
+!!! note
+
+    If `TMPFILE_PROTECTION_TIME` is set to 0 (default value), the automatic cleanup is disabled,
+    meaning all the uploaded Containerfile used for the build will be kept in `FILE_UPLOAD_TEMP_DIR`.
+
 
 ## Upload the Containerfile to a File Repository and use it to build
 

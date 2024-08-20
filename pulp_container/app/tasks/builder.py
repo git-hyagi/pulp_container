@@ -5,7 +5,6 @@ import subprocess
 import tempfile
 from uuid import uuid4
 
-from django.db import IntegrityError
 from pulp_container.app.models import (
     Blob,
     BlobManifest,
@@ -20,7 +19,6 @@ from pulpcore.plugin.models import (
     ContentArtifact,
     Content,
     PulpTemporaryFile,
-    RepositoryVersion,
 )
 
 
@@ -101,11 +99,11 @@ def add_image_from_directory_to_repository(path, repository, tag):
 
 
 def build_image_from_containerfile(
+    containerfile_artifact_pk=None,
     containerfile_tempfile_pk=None,
     content_artifact_pks=None,
     repository_pk=None,
     tag=None,
-    containerfile_artifact_pk=None,
 ):
     """
     Builds an OCI container image from a Containerfile.
@@ -114,12 +112,13 @@ def build_image_from_containerfile(
     values. The Containerfile can make use of these files during build process.
 
     Args:
-        containerfile_pk (str): The pk of an Artifact that contains the Containerfile
+        containerfile_artifact_pk (str): The pk of an Artifact that contains the Containerfile
+        containerfile_tempfile_pk (str): The pk of a PulpTemporaryFile that contains
+                                         the Containerfile
+        content_artifact_pk (list): The list of pks of ContentArtifacts used in the build context
+                                    of the Containerfile
         repository_pk (str): The pk of a Repository to add the OCI container image
         tag (str): Tag name for the new image in the repository
-        build_context_pk: The pk of a RepositoryVersion with the artifacts used in the build context
-                      of the Containerfile.
-        containerfile_name: Name of the Containerfile, stored as a File Content, from build_context
 
     Returns:
         A class:`pulpcore.plugin.models.RepositoryVersion` that contains the new OCI container
@@ -142,8 +141,6 @@ def build_image_from_containerfile(
         with open(containerfile_path, "wb") as dest:
             shutil.copyfileobj(containerfile.file, dest)
 
-        # if content_artifact_pks == [] it means building a containerfile without needing any
-        # "extra files" (build_context files are not need)
         if content_artifact_pks:
             content_artifacts = ContentArtifact.objects.filter(pk__in=content_artifact_pks)
             for content_artifact in content_artifacts.select_related("artifact").iterator():
@@ -166,11 +163,6 @@ def build_image_from_containerfile(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-
-        # delete the PulpTemporaryFile instance because it will not be garbage collected
-        # by orphan cleanup like artifacts
-        if containerfile_tempfile_pk:
-            containerfile.delete()
 
         if bud_cp.returncode != 0:
             raise Exception(bud_cp.stderr)
