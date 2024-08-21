@@ -8,6 +8,7 @@ from pulpcore.plugin.models import (
     Artifact,
     ContentArtifact,
     ContentRedirectContentGuard,
+    PulpTemporaryFile,
     Remote,
     Repository,
     RepositoryVersion,
@@ -804,6 +805,10 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
             # return early, we don't need the remaining validations to check the permissions
             return data
 
+        if containerfile := data.get("containerfile", None):
+            temp_file = PulpTemporaryFile.objects.update_or_create(file=containerfile)[0]
+            data["containerfile_tempfile_pk"] = str(temp_file.pk)
+
         if build_context := data.get("build_context", None):
             data["content_artifact_pks"] = []
             repository_version = RepositoryVersion.objects.get(pk=build_context.pk)
@@ -833,6 +838,8 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                         + '" in the build_context provided'
                     )
                 )
+
+            data["build_context_repo"] = repository_version.repository
 
         return data
 

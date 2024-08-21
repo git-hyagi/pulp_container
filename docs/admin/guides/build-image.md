@@ -7,8 +7,15 @@
 
 Users can add new images to a container repository by uploading a Containerfile. The syntax for
 Containerfile is the same as for a Dockerfile. The same REST API endpoint also accepts a JSON
-string that maps artifacts in Pulp to a filename. Any files passed in (via `build_context`) are
-available inside the build container at the path defined in File Content `relative-path`.
+string that maps artifacts in Pulp to a filename.
+
+To make a file available during the build process, we need to add it to a versioned file repository,
+then pass it as the `build_context` query parameter of the build container API, and finally specify the 
+```
+ADD/COPY <file relative-path> <location in container>
+```
+instruction in the Containerfile.
+
 
 It is possible to define the Containerfile in two ways:
 * from a [local file](site:pulp_container/docs/admin/guides/build-image#build-from-a-containerfile-uploaded-during-build-request) and pass it during build request
@@ -56,7 +63,7 @@ build_context=${FILE_REPO}versions/1/ | jq -r '.task')
 !!! note
 
     If `TMPFILE_PROTECTION_TIME` is set to 0 (default value), the automatic cleanup is disabled,
-    meaning all the uploaded Containerfile used for the build will be kept in `FILE_UPLOAD_TEMP_DIR`.
+    meaning all the uploaded Containerfile used for the builds will be kept in `FILE_UPLOAD_TEMP_DIR`.
 
 
 ## Upload the Containerfile to a File Repository and use it to build

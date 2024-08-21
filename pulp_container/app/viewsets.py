@@ -17,7 +17,7 @@ from rest_framework.decorators import action
 
 from pulpcore.plugin.models import RepositoryVersion
 from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
-from pulpcore.plugin.models import Content, PulpTemporaryFile
+from pulpcore.plugin.models import Content
 from pulpcore.plugin.tasking import dispatch, general_multi_delete
 from pulpcore.plugin.util import (
     extract_pk,
@@ -938,18 +938,16 @@ class ContainerRepositoryViewSet(
 
         serializer.is_valid(raise_exception=True)
 
-        containerfile_tempfile_pk = None
-        if containerfile := serializer.validated_data.get("containerfile", None):
-            temp_file = PulpTemporaryFile.objects.update_or_create(file=containerfile)[0]
-            containerfile_tempfile_pk = str(temp_file.pk)
-
+        containerfile_tempfile_pk = serializer.validated_data.get("containerfile_tempfile_pk", None)
         containerfile_artifact_pk = serializer.validated_data.get("containerfile_artifact_pk", None)
         content_artifact_pks = serializer.validated_data.get("content_artifact_pks", None)
+        build_context_repo = serializer.validated_data.get("build_context_repo", None)
         tag = serializer.validated_data["tag"]
 
         result = dispatch(
             tasks.build_image_from_containerfile,
             exclusive_resources=[repository],
+            shared_resources=[build_context_repo],
             kwargs={
                 "containerfile_artifact_pk": containerfile_artifact_pk,
                 "containerfile_tempfile_pk": containerfile_tempfile_pk,
