@@ -375,9 +375,6 @@ class ContainerDistributionSerializer(DistributionSerializer, GetOrCreateSeriali
         view_name_pattern=r"remotes(-.*/.*)?-detail",
         read_only=True,
     )
-    max_payload_size = serializers.IntegerField(
-        required=False, min_value=0, help_text=_("Maximum size of image blob layers.")
-    )
 
     def validate(self, data):
         """
@@ -433,7 +430,6 @@ class ContainerDistributionSerializer(DistributionSerializer, GetOrCreateSeriali
             "namespace",
             "private",
             "description",
-            "max_payload_size",
         )
 
 
