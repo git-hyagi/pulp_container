@@ -14,12 +14,15 @@ from django.core.files.storage import default_storage as storage
 from django.db import IntegrityError
 from functools import partial
 from rest_framework.exceptions import Throttled
+from pathlib import Path
 
 from pulpcore.plugin.models import Artifact, Task
 
 from pulp_container.constants import (
     MANIFEST_MEDIA_TYPES,
+    MANIFEST_PAYLOAD_MAX_SIZE,
     MEDIA_TYPE,
+    SIGNATURE_PAYLOAD_MAX_SIZE,
 )
 from pulp_container.app.exceptions import ManifestInvalid
 from pulp_container.app.json_schemas import (
@@ -220,6 +223,19 @@ def validate_manifest(content_data, media_type, digest):
         raise ManifestInvalid(
             reason=f'{".".join(map(str, error.path))}: {error.message}', digest=digest
         )
+    
+    manifests = content_data.get("manifests",None)
+    if manifests and not _is_manifest_size_valid(manifests):
+        raise ManifestInvalid(
+            reason=f"A manifest with a size larger than allowed ("+MANIFEST_PAYLOAD_MAX_SIZE+") was provided.",digest=digest
+        )
+
+
+def _is_manifest_size_valid(manifests):
+    for manifest in manifests:
+        if manifest.get("size") > MANIFEST_PAYLOAD_MAX_SIZE:
+            return False
+    return True
 
 
 def calculate_digest(manifest):
@@ -342,3 +358,10 @@ def filter_resources(element_list, include_patterns, exclude_patterns):
     if exclude_patterns:
         element_list = filter(partial(exclude, patterns=exclude_patterns), element_list)
     return list(element_list)
+
+
+def is_signature_size_valid(file_path):
+    file = Path(file_path)
+    #if file.stat().st_size > SIGNATURE_PAYLOAD_MAX_SIZE:
+    if file.stat().st_size > 10:
+        return False
