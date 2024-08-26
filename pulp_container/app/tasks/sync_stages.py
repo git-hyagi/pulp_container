@@ -5,7 +5,6 @@ import hashlib
 import json
 import logging
 
-from pathlib import Path
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from asgiref.sync import sync_to_async
@@ -431,9 +430,7 @@ class ContainerFirstStage(Stage):
         manifest = Manifest(
             digest=digest,
             schema_version=(
-                2
-                if media_type in (MEDIA_TYPE.MANIFEST_V2, MEDIA_TYPE.MANIFEST_OCI)
-                else 1
+                2 if media_type in (MEDIA_TYPE.MANIFEST_V2, MEDIA_TYPE.MANIFEST_OCI) else 1
             ),
             media_type=media_type,
             data=raw_text_data,
@@ -550,15 +547,13 @@ class ContainerFirstStage(Stage):
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
 
-                file = Path(signature_download_result.path)
-                #if file.stat().st_size > SIGNATURE_PAYLOAD_MAX_SIZE:
-                if file.stat().st_size > 10:
+                if not is_signature_size_valid(signature_download_result.path):
                     log.info(
-                        "Signature size is not valid, can't sync an image signature."
+                        "Signature size is not valid, the max allowed size is {}.".format(
+                            SIGNATURE_PAYLOAD_MAX_SIZE
+                        )
                     )
                     raise ManifestSignatureInvalid(digest=man_digest_reformatted)
-                    
-
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()
 
@@ -581,7 +576,9 @@ class ContainerFirstStage(Stage):
             await signatures_downloader.run(extra_data={"headers": {}})
             with open(signatures_downloader.path) as signatures_fd:
                 try:
-                    api_extension_signatures = json.loads(signatures_fd.read(SIGNATURE_PAYLOAD_MAX_SIZE))
+                    api_extension_signatures = json.loads(
+                        signatures_fd.read(SIGNATURE_PAYLOAD_MAX_SIZE)
+                    )
                 except json.decoder.JSONDecodeError:
                     raise ManifestSignatureInvalid(digest=man_dc.content.digest)
             for signature in api_extension_signatures.get("signatures", []):

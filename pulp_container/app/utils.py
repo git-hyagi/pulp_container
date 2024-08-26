@@ -223,11 +223,14 @@ def validate_manifest(content_data, media_type, digest):
         raise ManifestInvalid(
             reason=f'{".".join(map(str, error.path))}: {error.message}', digest=digest
         )
-    
-    manifests = content_data.get("manifests",None)
+
+    manifests = content_data.get("manifests", None)
     if manifests and not _is_manifest_size_valid(manifests):
         raise ManifestInvalid(
-            reason=f"A manifest with a size larger than allowed ("+MANIFEST_PAYLOAD_MAX_SIZE+") was provided.",digest=digest
+            reason="Manifest size is not valid, the max allowed size is {}.".format(
+                MANIFEST_PAYLOAD_MAX_SIZE
+            ),
+            digest=digest,
         )
 
 
@@ -361,7 +364,6 @@ def filter_resources(element_list, include_patterns, exclude_patterns):
 
 
 def is_signature_size_valid(file_path):
-    file = Path(file_path)
-    #if file.stat().st_size > SIGNATURE_PAYLOAD_MAX_SIZE:
-    if file.stat().st_size > 10:
+    if Path(file_path).stat().st_size > SIGNATURE_PAYLOAD_MAX_SIZE:
         return False
+    return True
