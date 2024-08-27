@@ -10,7 +10,7 @@ from urllib import parse
 
 from pulpcore.plugin.download import DownloaderFactory, HttpDownloader
 
-from pulp_container.constants import V2_ACCEPT_HEADERS
+from pulp_container.constants import V2_ACCEPT_HEADERS,MEDIA_TYPE,MANIFEST_PAYLOAD_MAX_SIZE
 
 log = getLogger(__name__)
 
@@ -77,6 +77,16 @@ class RegistryAuthHttpDownloader(HttpDownloader):
         async with session_http_method(
             self.url, headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         ) as response:
+            if response.content_type in MEDIA_TYPE.MANIFEST_V2 and http_method == "get":
+                total_size = 0
+                buffer = b''
+                async for chunk in response.content.iter_chunked(1048576):
+                    total_size += len(chunk)
+                    buffer += chunk
+                    #if total_size > 1234:
+                    if total_size > MANIFEST_PAYLOAD_MAX_SIZE:
+                        raise Exception("File size exceeds the limit.")
+                response.content.unread_data(buffer)
             try:
                 response.raise_for_status()
             except ClientResponseError as e:

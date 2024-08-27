@@ -67,6 +67,13 @@ class ContainerFirstStage(Stage):
     async def _download_manifest_data(self, manifest_url):
         downloader = self.remote.get_downloader(url=manifest_url)
         response = await downloader.run(extra_data={"headers": V2_ACCEPT_HEADERS})
+
+        #if not is_signature_size_valid(response.path):
+        #    log.info(
+        #        "Manifest size is not valid, the max allowed size is {}.".format(
+        #        SIGNATURE_PAYLOAD_MAX_SIZE
+        #        )
+        #    )
         with open(response.path, "rb") as content_file:
             raw_bytes_data = content_file.read()
         response.artifact_attributes["file"] = response.path
@@ -551,11 +558,11 @@ class ContainerFirstStage(Stage):
 
                 if not is_signature_size_valid(signature_download_result.path):
                     log.info(
-                        "Signature size is not valid, the max allowed size is {}.".format(
+                        "Signature body size exceeded maximum allowed size of {}.".format(
                             SIGNATURE_PAYLOAD_MAX_SIZE
                         )
                     )
-                    raise ManifestSignatureInvalid(digest=man_digest_reformatted)
+                    return
 
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()
@@ -577,13 +584,15 @@ class ContainerFirstStage(Stage):
             # FIXME this can be rolledback after https://github.com/pulp/pulp_container/issues/1288
             # signature extensions endpoint does not like any unnecessary headers to be sent
             await signatures_downloader.run(extra_data={"headers": {}})
+            if not is_signature_size_valid(signatures_downloader.path):
+               log.info(
+                   "Signature body size exceeded maximum allowed size of {}.".format(
+                       SIGNATURE_PAYLOAD_MAX_SIZE
+                   )
+               )
+               return
             with open(signatures_downloader.path) as signatures_fd:
-                try:
-                    api_extension_signatures = json.loads(
-                        signatures_fd.read(SIGNATURE_PAYLOAD_MAX_SIZE)
-                    )
-                except json.decoder.JSONDecodeError:
-                    raise ManifestSignatureInvalid(digest=man_dc.content.digest)
+                api_extension_signatures = json.loads(signatures_fd.read())
             for signature in api_extension_signatures.get("signatures", []):
                 if (
                     signature.get("schemaVersion") == SIGNATURE_API_EXTENSION_VERSION
