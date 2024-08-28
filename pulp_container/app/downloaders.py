@@ -10,7 +10,16 @@ from urllib import parse
 
 from pulpcore.plugin.download import DownloaderFactory, HttpDownloader
 
-from pulp_container.constants import V2_ACCEPT_HEADERS,MEDIA_TYPE,MANIFEST_PAYLOAD_MAX_SIZE
+from pulp_container.constants import (
+    MANIFEST_MEDIA_TYPES,
+    MANIFEST_PAYLOAD_MAX_SIZE,
+    MEGABYTE,
+    # RESOURCES_WITH_MAX_SIZE,
+    SIGNATURE_PAYLOAD_MAX_SIZE,
+    # SIGNATURE_TYPE,
+    V2_ACCEPT_HEADERS,
+)
+from pulp_container.app.exceptions import InvalidRequest
 
 log = getLogger(__name__)
 
@@ -20,7 +29,44 @@ HeadResult = namedtuple(
 )
 
 
-class RegistryAuthHttpDownloader(HttpDownloader):
+class ValidateResourceSizeMixin:
+    async def validate_resource_size(self, response, request_method=None):
+        """
+        Verify if the constrained resources are not exceeding the maximum size allowed.
+        """
+        if request_method == "head":
+            return
+
+        content_type = response.content_type
+        max_resource_size = 0
+        if content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
+            max_resource_size = MANIFEST_PAYLOAD_MAX_SIZE
+            content_type = "Manifest"
+        elif isinstance(self, NoAuthSignatureDownloader):
+            max_resource_size = SIGNATURE_PAYLOAD_MAX_SIZE
+            content_type = "Signature"
+        else:
+            return
+
+        total_size = 0
+        buffer = b""
+        async for chunk in response.content.iter_chunked(MEGABYTE):
+            total_size += len(chunk)
+            buffer += chunk
+            if total_size > max_resource_size:
+                raise InvalidRequest(
+                    f"{content_type} size exceeded the {max_resource_size} bytes"
+                    f"limit ({total_size})."
+                )
+        response.content.unread_data(buffer)
+
+    def _resources_to_verify():
+        """
+        Resources that has a size limitation.
+        """
+
+
+class RegistryAuthHttpDownloader(HttpDownloader, ValidateResourceSizeMixin):
     """
     Custom Downloader that automatically handles Token Based and Basic Authentication.
 
@@ -77,16 +123,8 @@ class RegistryAuthHttpDownloader(HttpDownloader):
         async with session_http_method(
             self.url, headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         ) as response:
-            if response.content_type in MEDIA_TYPE.MANIFEST_V2 and http_method == "get":
-                total_size = 0
-                buffer = b''
-                async for chunk in response.content.iter_chunked(1048576):
-                    total_size += len(chunk)
-                    buffer += chunk
-                    #if total_size > 1234:
-                    if total_size > MANIFEST_PAYLOAD_MAX_SIZE:
-                        raise Exception("File size exceeds the limit.")
-                response.content.unread_data(buffer)
+            # await self._validate_resource_size(response, http_method)
+            await self.validate_resource_size(response, http_method)
             try:
                 response.raise_for_status()
             except ClientResponseError as e:
@@ -122,6 +160,41 @@ class RegistryAuthHttpDownloader(HttpDownloader):
         if self._close_session_on_finalize:
             self.session.close()
         return to_return
+
+    # async def _validate_resource_size(self, response, request_method):
+    #    if request_method != "get":
+    #        return
+
+    #    content_type = response.content_type
+
+    #    # resources_to_limit = [MANIFEST_MEDIA_TYPES.LIST,MANIFEST_MEDIA_TYPES.IMAGE,
+    # SIGNATURE_TYPE.ATOMIC_FULL,SIGNATURE_TYPE.ATOMIC_SHORT]
+
+    #    if (
+    #        content_type not in RESOURCES_WITH_MAX_SIZE.MANIFESTS
+    #        and content_type not in RESOURCES_WITH_MAX_SIZE.SIGNATURES
+    #    ):
+    #        return
+
+    #    max_resource_size = 0
+    #    if content_type in RESOURCES_WITH_MAX_SIZE.MANIFESTS:
+    #        max_resource_size = MANIFEST_PAYLOAD_MAX_SIZE
+    #    elif content_type in RESOURCES_WITH_MAX_SIZE.SIGNATURES:
+    #        max_resource_size = SIGNATURE_PAYLOAD_MAX_SIZE
+
+    #    total_size = 0
+    #    buffer = b""
+    #    async for chunk in response.content.iter_chunked(MEGABYTE):
+    #        total_size += len(chunk)
+    #        buffer += chunk
+    #        if total_size > max_resource_size:
+    #            raise Exception(
+    #                "{} size exceeded the {} limit ({}).",
+    #                content_type,
+    #                max_resource_size,
+    #                total_size,
+    #            )
+    #    response.content.unread_data(buffer)
 
     async def update_token(self, response_auth_header, used_token, repo_name):
         """
@@ -203,7 +276,7 @@ class RegistryAuthHttpDownloader(HttpDownloader):
         )
 
 
-class NoAuthSignatureDownloader(HttpDownloader):
+class NoAuthSignatureDownloader(HttpDownloader, ValidateResourceSizeMixin):
     """A downloader class suited for signature downloads."""
 
     def raise_for_status(self, response):
@@ -217,6 +290,20 @@ class NoAuthSignatureDownloader(HttpDownloader):
             raise FileNotFoundError()
         else:
             response.raise_for_status()
+
+    async def _run(self, extra_data=None):
+        if self.download_throttler:
+            await self.download_throttler.acquire()
+        async with self.session.get(
+            self.url, proxy=self.proxy, proxy_auth=self.proxy_auth, auth=self.auth
+        ) as response:
+            await self.validate_resource_size(response)
+            self.raise_for_status(response)
+            to_return = await self._handle_response(response)
+            await response.release()
+        if self._close_session_on_finalize:
+            await self.session.close()
+        return to_return
 
 
 class NoAuthDownloaderFactory(DownloaderFactory):

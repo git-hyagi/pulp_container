@@ -15,7 +15,7 @@ from pulp_container.constants import (
     MEDIA_TYPE,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
-    SIGNATURE_PAYLOAD_MAX_SIZE,
+    # SIGNATURE_PAYLOAD_MAX_SIZE,
     SIGNATURE_SOURCE,
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
@@ -36,10 +36,10 @@ from pulp_container.app.utils import (
     calculate_digest,
     filter_resources,
     get_content_data,
-    is_signature_size_valid,
+    # is_signature_size_valid,
 )
 
-from pulp_container.app.exceptions import ManifestSignatureInvalid
+# from pulp_container.app.exceptions import ManifestSignatureInvalid, InvalidRequest
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class ContainerFirstStage(Stage):
         downloader = self.remote.get_downloader(url=manifest_url)
         response = await downloader.run(extra_data={"headers": V2_ACCEPT_HEADERS})
 
-        #if not is_signature_size_valid(response.path):
+        # if not is_signature_size_valid(response.path):
         #    log.info(
         #        "Manifest size is not valid, the max allowed size is {}.".format(
         #        SIGNATURE_PAYLOAD_MAX_SIZE
@@ -556,13 +556,13 @@ class ContainerFirstStage(Stage):
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
 
-                if not is_signature_size_valid(signature_download_result.path):
-                    log.info(
-                        "Signature body size exceeded maximum allowed size of {}.".format(
-                            SIGNATURE_PAYLOAD_MAX_SIZE
-                        )
-                    )
-                    return
+                # if not is_signature_size_valid(signature_download_result.path):
+                #    log.info(
+                #        "Signature body size exceeded maximum allowed size of {}.".format(
+                #            SIGNATURE_PAYLOAD_MAX_SIZE
+                #        )
+                #    )
+                #    return
 
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()
@@ -584,13 +584,6 @@ class ContainerFirstStage(Stage):
             # FIXME this can be rolledback after https://github.com/pulp/pulp_container/issues/1288
             # signature extensions endpoint does not like any unnecessary headers to be sent
             await signatures_downloader.run(extra_data={"headers": {}})
-            if not is_signature_size_valid(signatures_downloader.path):
-               log.info(
-                   "Signature body size exceeded maximum allowed size of {}.".format(
-                       SIGNATURE_PAYLOAD_MAX_SIZE
-                   )
-               )
-               return
             with open(signatures_downloader.path) as signatures_fd:
                 api_extension_signatures = json.loads(signatures_fd.read())
             for signature in api_extension_signatures.get("signatures", []):

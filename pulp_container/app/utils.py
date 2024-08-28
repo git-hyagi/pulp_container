@@ -224,14 +224,14 @@ def validate_manifest(content_data, media_type, digest):
             reason=f'{".".join(map(str, error.path))}: {error.message}', digest=digest
         )
 
-    manifests = content_data.get("manifests", None)
-    if manifests and not _is_manifest_size_valid(manifests):
-        raise ManifestInvalid(
-            reason="Manifest size is not valid, the max allowed size is {}.".format(
-                MANIFEST_PAYLOAD_MAX_SIZE
-            ),
-            digest=digest,
-        )
+    # manifests = content_data.get("manifests", None)
+    # if manifests and not _is_manifest_size_valid(manifests):
+    #    raise ManifestInvalid(
+    #        reason="Manifest size is not valid, the max allowed size is {}.".format(
+    #            MANIFEST_PAYLOAD_MAX_SIZE
+    #        ),
+    #        digest=digest,
+    #    )
 
 
 def _is_manifest_size_valid(manifests):
