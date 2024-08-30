@@ -36,10 +36,8 @@ from pulp_container.app.utils import (
     calculate_digest,
     filter_resources,
     get_content_data,
-    # is_signature_size_valid,
 )
 
-# from pulp_container.app.exceptions import ManifestSignatureInvalid, InvalidRequest
 
 log = logging.getLogger(__name__)
 
@@ -263,9 +261,6 @@ class ContainerFirstStage(Stage):
         """
         if self.remote.sigstore:
             return SIGNATURE_SOURCE.SIGSTORE
-
-        #if self.remote.url == "https://quay.io":
-        #    return
 
         registry_v2_url = urljoin(self.remote.url, "v2/")
         extension_check_downloader = self.remote.get_noauth_downloader(url=registry_v2_url)
