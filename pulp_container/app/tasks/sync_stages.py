@@ -270,6 +270,9 @@ class ContainerFirstStage(Stage):
         if self.remote.sigstore:
             return SIGNATURE_SOURCE.SIGSTORE
 
+        #if self.remote.url == "https://quay.io":
+        #    return
+
         registry_v2_url = urljoin(self.remote.url, "v2/")
         extension_check_downloader = self.remote.get_noauth_downloader(url=registry_v2_url)
         response_headers = {}
@@ -555,14 +558,6 @@ class ContainerFirstStage(Stage):
                         "{} is not accessible, can't sync an image signature. "
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
-
-                # if not is_signature_size_valid(signature_download_result.path):
-                #    log.info(
-                #        "Signature body size exceeded maximum allowed size of {}.".format(
-                #            SIGNATURE_PAYLOAD_MAX_SIZE
-                #        )
-                #    )
-                #    return
 
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()

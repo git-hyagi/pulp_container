@@ -39,12 +39,12 @@ class ValidateResourceSizeMixin:
 
         content_type = response.content_type
         max_resource_size = 0
-        if content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
-            max_resource_size = MANIFEST_PAYLOAD_MAX_SIZE
-            content_type = "Manifest"
-        elif isinstance(self, NoAuthSignatureDownloader):
+        if isinstance(self, NoAuthSignatureDownloader):
             max_resource_size = SIGNATURE_PAYLOAD_MAX_SIZE
             content_type = "Signature"
+        elif content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
+            max_resource_size = MANIFEST_PAYLOAD_MAX_SIZE
+            content_type = "Manifest"
         else:
             return
 
