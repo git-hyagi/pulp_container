@@ -68,12 +68,6 @@ class ContainerFirstStage(Stage):
         downloader = self.remote.get_downloader(url=manifest_url)
         response = await downloader.run(extra_data={"headers": V2_ACCEPT_HEADERS})
 
-        # if not is_signature_size_valid(response.path):
-        #    log.info(
-        #        "Manifest size is not valid, the max allowed size is {}.".format(
-        #        SIGNATURE_PAYLOAD_MAX_SIZE
-        #        )
-        #    )
         with open(response.path, "rb") as content_file:
             raw_bytes_data = content_file.read()
         response.artifact_attributes["file"] = response.path

@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import fnmatch
 import json
 import re
 
@@ -39,7 +40,9 @@ class ValidateResourceSizeMixin:
 
         content_type = response.content_type
         max_resource_size = 0
-        if isinstance(self, NoAuthSignatureDownloader):
+        is_cosign_tag = fnmatch.fnmatch(response.url.name,'sha256-*.sig')
+
+        if isinstance(self, NoAuthSignatureDownloader) or is_cosign_tag:
             max_resource_size = SIGNATURE_PAYLOAD_MAX_SIZE
             content_type = "Signature"
         elif content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
@@ -55,7 +58,7 @@ class ValidateResourceSizeMixin:
             buffer += chunk
             if total_size > max_resource_size:
                 raise InvalidRequest(
-                    f"{content_type} size exceeded the {max_resource_size} bytes"
+                    f"{content_type} size exceeded the {max_resource_size} bytes "
                     f"limit ({total_size})."
                 )
         response.content.unread_data(buffer)

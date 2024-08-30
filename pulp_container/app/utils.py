@@ -363,5 +363,5 @@ def filter_resources(element_list, include_patterns, exclude_patterns):
     return list(element_list)
 
 
-def is_signature_size_valid(file_path):
-    return Path(file_path).stat().st_size <= SIGNATURE_PAYLOAD_MAX_SIZE
+#def is_signature_size_valid(file_path):
+#    return Path(file_path).stat().st_size <= SIGNATURE_PAYLOAD_MAX_SIZE

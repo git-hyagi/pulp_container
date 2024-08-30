@@ -1426,7 +1426,8 @@ class Signatures(ContainerRegistryApiMixin, ViewSet):
         except models.Manifest.DoesNotExist:
             raise ManifestNotFound(reference=pk)
 
-        signature_payload = request.META["wsgi.input"].read(SIGNATURE_PAYLOAD_MAX_SIZE)
+        #signature_payload = request.META["wsgi.input"].read(SIGNATURE_PAYLOAD_MAX_SIZE)
+        signature_payload = request.META["wsgi.input"].read()
         try:
             signature_dict = json.loads(signature_payload)
         except json.decoder.JSONDecodeError:
