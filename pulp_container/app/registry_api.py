@@ -86,11 +86,14 @@ from pulp_container.app.utils import (
     filter_resource,
     has_task_completed,
     validate_manifest,
+    resource_body_size_exceeded_msg,
 )
 from pulp_container.constants import (
     EMPTY_BLOB,
+    MANIFEST_PAYLOAD_MAX_SIZE,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
+    SIGNATURE_PAYLOAD_MAX_SIZE,
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
 )
@@ -1353,8 +1356,12 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
                 subchunk = chunk.read(2000000)
                 if not subchunk:
                     break
-                temp_file.write(subchunk)
                 size += len(subchunk)
+                if size > MANIFEST_PAYLOAD_MAX_SIZE:
+                    raise InvalidRequest(
+                       message=resource_body_size_exceeded_msg("Manifest",MANIFEST_PAYLOAD_MAX_SIZE)
+                    )
+                temp_file.write(subchunk)
                 for algorithm in Artifact.DIGEST_FIELDS:
                     hashers[algorithm].update(subchunk)
             temp_file.flush()
@@ -1425,7 +1432,7 @@ class Signatures(ContainerRegistryApiMixin, ViewSet):
         except models.Manifest.DoesNotExist:
             raise ManifestNotFound(reference=pk)
 
-        signature_payload = request.META["wsgi.input"].read()
+        signature_payload = request.META["wsgi.input"].read(SIGNATURE_PAYLOAD_MAX_SIZE)
         try:
             signature_dict = json.loads(signature_payload)
         except json.decoder.JSONDecodeError:

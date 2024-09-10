@@ -19,6 +19,7 @@ from pulp_container.constants import (
     V2_ACCEPT_HEADERS,
 )
 from pulp_container.app.exceptions import InvalidRequest
+from pulp_container.app.utils import resource_body_size_exceeded_msg
 
 log = getLogger(__name__)
 
@@ -49,6 +50,9 @@ class ValidateResourceSizeMixin:
         else:
             return
 
+        if response.content_length > max_resource_size:
+            log.warning(resource_body_size_exceeded_msg(content_type,max_resource_size))
+        
         total_size = 0
         buffer = b""
         async for chunk in response.content.iter_chunked(MEGABYTE):
@@ -56,8 +60,7 @@ class ValidateResourceSizeMixin:
             buffer += chunk
             if total_size > max_resource_size:
                 raise InvalidRequest(
-                    f"{content_type} size exceeded the {max_resource_size} bytes "
-                    f"limit ({total_size} bytes)."
+                    resource_body_size_exceeded_msg(content_type,max_resource_size)
                 )
         response.content.unread_data(buffer)
 
