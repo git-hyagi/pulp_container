@@ -9,6 +9,8 @@ from collections import namedtuple
 from logging import getLogger
 from urllib import parse
 
+
+from pulpcore.download.base import DownloadResult
 from pulpcore.plugin.download import DownloaderFactory, HttpDownloader
 
 from pulp_container.constants import (
@@ -30,42 +32,56 @@ HeadResult = namedtuple(
 
 
 class ValidateResourceSizeMixin:
-    async def validate_resource_size(self, response, request_method=None):
+    async def _handle_response(self, response, content_type=None,max_body_size=None):
         """
-        Verify if the constrained resources are not exceeding the maximum size allowed.
+        Overrides the HttpDownloader method to be able to limit the request body size.
+        Handle the aiohttp response by writing it to disk and calculating digests
+        Args:
+            response (aiohttp.ClientResponse): The response to handle.
+            content_type (string): Type of the resource (manifest or signature) which size will be verified.
+            max_body_size (int): Maximum allowed body size of the resource (manifest or signature).
+        Returns:
+             DownloadResult: Contains information about the result. See the DownloadResult docs for
+                 more information.
         """
-        if request_method == "head":
-            return
+        if self.headers_ready_callback:
+            await self.headers_ready_callback(response.headers)
+        total_size = 0
+        while True:
+            chunk = await response.content.read(MEGABYTE)
+            total_size +=len(chunk)
+            if max_body_size and total_size > max_body_size:
+                raise InvalidRequest(
+                    resource_body_size_exceeded_msg(content_type,max_body_size)
+                )
+            if not chunk:
+                await self.finalize()
+                break  # the download is done
+            await self.handle_data(chunk)
+        return DownloadResult(
+            path=self.path,
+            artifact_attributes=self.artifact_attributes,
+            url=self.url,
+            headers=response.headers,
+        )
 
-        content_type = response.content_type
-        max_resource_size = 0
-        is_cosign_tag = fnmatch.fnmatch(response.url.name, "sha256-*.sig")
-
+    def get_content_type_and_max_resource_size(self,request):
+        """
+        Returns the content_type (manifest or signature) based on the HTTP request and also the
+        corresponding resource allowed maximum size.
+        """
+        max_resource_size=None
+        content_type = request.content_type
+        is_cosign_tag = fnmatch.fnmatch(request.url.name, "sha256-*.sig")
         if isinstance(self, NoAuthSignatureDownloader) or is_cosign_tag:
             max_resource_size = SIGNATURE_PAYLOAD_MAX_SIZE
             content_type = "Signature"
         elif content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
             max_resource_size = MANIFEST_PAYLOAD_MAX_SIZE
             content_type = "Manifest"
-        else:
-            return
+        return content_type,max_resource_size
 
-        if response.content_length > max_resource_size:
-            log.warning(resource_body_size_exceeded_msg(content_type,max_resource_size))
-        
-        total_size = 0
-        buffer = b""
-        async for chunk in response.content.iter_chunked(MEGABYTE):
-            total_size += len(chunk)
-            buffer += chunk
-            if total_size > max_resource_size:
-                raise InvalidRequest(
-                    resource_body_size_exceeded_msg(content_type,max_resource_size)
-                )
-        response.content.unread_data(buffer)
-
-
-class RegistryAuthHttpDownloader(HttpDownloader, ValidateResourceSizeMixin):
+class RegistryAuthHttpDownloader(ValidateResourceSizeMixin,HttpDownloader):
     """
     Custom Downloader that automatically handles Token Based and Basic Authentication.
 
@@ -122,7 +138,6 @@ class RegistryAuthHttpDownloader(HttpDownloader, ValidateResourceSizeMixin):
         async with session_http_method(
             self.url, headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         ) as response:
-            await self.validate_resource_size(response, http_method)
             try:
                 response.raise_for_status()
             except ClientResponseError as e:
@@ -150,7 +165,8 @@ class RegistryAuthHttpDownloader(HttpDownloader, ValidateResourceSizeMixin):
             if http_method == "head":
                 to_return = await self._handle_head_response(response)
             else:
-                to_return = await self._handle_response(response)
+                content_type,max_resource_size = self.get_content_type_and_max_resource_size(response)
+                to_return = await self._handle_response(response,content_type,max_resource_size)
 
             await response.release()
             self.response_headers = response.headers
@@ -238,8 +254,7 @@ class RegistryAuthHttpDownloader(HttpDownloader, ValidateResourceSizeMixin):
             headers=response.headers,
         )
 
-
-class NoAuthSignatureDownloader(HttpDownloader, ValidateResourceSizeMixin):
+class NoAuthSignatureDownloader(ValidateResourceSizeMixin,HttpDownloader):
     """A downloader class suited for signature downloads."""
 
     def raise_for_status(self, response):
@@ -260,14 +275,13 @@ class NoAuthSignatureDownloader(HttpDownloader, ValidateResourceSizeMixin):
         async with self.session.get(
             self.url, proxy=self.proxy, proxy_auth=self.proxy_auth, auth=self.auth
         ) as response:
-            await self.validate_resource_size(response)
             self.raise_for_status(response)
-            to_return = await self._handle_response(response)
+            content_type,max_resource_size = self.get_content_type_and_max_resource_size(response)
+            to_return = await self._handle_response(response,content_type,max_resource_size)
             await response.release()
         if self._close_session_on_finalize:
             await self.session.close()
         return to_return
-
 
 class NoAuthDownloaderFactory(DownloaderFactory):
     """

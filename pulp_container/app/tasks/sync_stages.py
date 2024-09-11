@@ -559,10 +559,10 @@ class ContainerFirstStage(Stage):
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
                 except InvalidRequest as e:
-                     # if it failed to download the manifest, log the error and
-                     # there is nothing to return
-                     log.warning(e.args[0])
-                     return []
+                     log.warning(
+                         "Failed to sync signature {}."
+                         "Error: {}".format(signature_url,e.args[0])
+                     )
 
                 with open(signature_download_result.path, "rb") as f:
                     signature_raw = f.read()
