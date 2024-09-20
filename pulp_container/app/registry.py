@@ -455,9 +455,11 @@ class PullThroughDownloader:
             data=raw_text_data,
         )
 
-        # skip if media_type of schema1
+        # if media_type of schema1 configure only manifest architecture
         if media_type in (MEDIA_TYPE.MANIFEST_V2, MEDIA_TYPE.MANIFEST_OCI):
             await sync_to_async(manifest.init_metadata)(manifest_data=manifest_data)
+        else:
+            await sync_to_async(manifest.init_architecture)(manifest_data=manifest_data)
 
         try:
             await manifest.asave()

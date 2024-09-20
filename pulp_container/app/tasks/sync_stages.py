@@ -390,8 +390,8 @@ class ContainerFirstStage(Stage):
             media_type=media_type,
             data=raw_text_data,
             annotations=manifest_data.get("annotations", {}),
+            architecture=manifest_data.get("architecture", None),
         )
-
         manifest_dc = DeclarativeContent(content=manifest)
         return manifest_dc
 
@@ -639,6 +639,16 @@ class ContainerContentSaver(ContentSaver):
                             os_features=platform.get("os.features"),
                         )
                     )
+            if "config_blob_dc" in dc.extra_data:
+                manifest_dc = dc.content
+                config_blob_sha256 = dc.extra_data["config_blob_dc"].content.digest
+                blob_artifact = Artifact.objects.get(
+                    sha256=config_blob_sha256.removeprefix("sha256:")
+                )
+                config_blob, _ = get_content_data(blob_artifact)
+                manifest_dc.architecture = config_blob.get("architecture", None)
+                manifest_dc.save()
+
         if blob_manifests:
             BlobManifest.objects.bulk_create(blob_manifests, ignore_conflicts=True)
         if manifest_list_manifests:

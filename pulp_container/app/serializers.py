@@ -103,6 +103,11 @@ class ManifestSerializer(NoArtifactContentSerializer):
         default=False,
         help_text=_("A boolean determining whether the image bundles a Flatpak application"),
     )
+    architecture = serializers.CharField(
+        help_text="The CPU architecture which the binaries in this image are built to run on.",
+        required=False,
+        default=None,
+    )
 
     class Meta:
         fields = NoArtifactContentSerializer.Meta.fields + (
@@ -116,6 +121,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
             "labels",
             "is_bootable",
             "is_flatpak",
+            "architecture",
         )
         model = models.Manifest
 

@@ -77,6 +77,8 @@ class Manifest(Content):
         labels (models.JSONField): Metadata stored inside the image configuration.
         is_bootable (models.BooleanField): Indicates whether the image is bootable or not.
         is_flatpak (models.BooleanField): Indicates whether the image is a flatpak package or not.
+        architecture (models.TextField): CPU architecture for which the binaries in the image are
+            designed to run.
 
     Relations:
         blobs (models.ManyToManyField): Many-to-many relationship with Blob.
@@ -103,6 +105,7 @@ class Manifest(Content):
 
     annotations = models.JSONField(default=dict)
     labels = models.JSONField(default=dict)
+    architecture = models.TextField(null=True)
 
     is_bootable = models.BooleanField(default=False)
     is_flatpak = models.BooleanField(default=False)
@@ -124,6 +127,7 @@ class Manifest(Content):
         has_annotations = self.init_annotations(manifest_data)
         has_labels = self.init_labels()
         has_image_nature = self.init_image_nature()
+        self.init_architecture(manifest_data)
         return has_annotations or has_labels or has_image_nature
 
     def init_annotations(self, manifest_data=None):
@@ -175,6 +179,18 @@ class Manifest(Content):
             return True
         else:
             return False
+
+    def init_architecture(self, manifest_data):
+        # manifestv2 schema1 has the architecture definition in the Manifest (not in the ConfigBlob)
+        if architecture := manifest_data.get("architecture", None):
+            self.architecture = architecture
+            return
+
+        manifest_config = manifest_data.get("config", None)
+        config_blob_sha256 = manifest_config.get("digest", None)
+        blob_artifact = Artifact.objects.get(sha256=config_blob_sha256.removeprefix("sha256:"))
+        config_blob, _ = get_content_data(blob_artifact)
+        self.architecture = config_blob.get("architecture", None)
 
     def is_bootable_image(self):
         if (
