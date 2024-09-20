@@ -204,7 +204,12 @@ def test_invalid_containerfile_from_build_context(
 
 
 def test_without_build_context(
-    build_image, container_distribution_api, container_repo, gen_object_with_cleanup, local_registry
+    build_image,
+    container_distribution_api,
+    container_manifest_api,
+    container_repo,
+    gen_object_with_cleanup,
+    local_registry,
 ):
     """Test build with only a Containerfile (no additional files)"""
 
@@ -232,3 +237,8 @@ CMD ["ls", "/"]"""
     local_registry.pull(distribution.base_path)
     image = local_registry.inspect(distribution.base_path)
     assert image[0]["Config"]["Cmd"] == ["ls", "/"]
+    manifest = container_manifest_api.list(digest=image[0]["Digest"])
+    manifests = manifest.to_dict()["results"]
+    assert any("amd" in manifest["architecture"] for manifest in manifests)
+    assert any("linux" in manifest["os"] for manifest in manifests)
+    assert any(manifest["compressed_layers_size"] > 0 for manifest in manifests)
