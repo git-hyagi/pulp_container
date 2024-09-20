@@ -332,12 +332,15 @@ class ContainerFirstStage(Stage):
         Handle blobs.
         """
         manifest_dc.extra_data["blob_dcs"] = []
+        compressed_size = 0
         for layer in content_data.get("layers") or content_data.get("fsLayers"):
             if not self._include_layer(layer):
                 continue
+            compressed_size += layer.get("size", 0)
             blob_dc = self.create_blob(layer)
             manifest_dc.extra_data["blob_dcs"].append(blob_dc)
             await self.put(blob_dc)
+        manifest_dc.content.compressed_layers_size = compressed_size
         layer = content_data.get("config", None)
         if layer:
             blob_dc = self.create_blob(layer, deferred_download=False)
@@ -390,8 +393,8 @@ class ContainerFirstStage(Stage):
             media_type=media_type,
             data=raw_text_data,
             annotations=manifest_data.get("annotations", {}),
+            architecture=manifest_data.get("architecture", None),
         )
-
         manifest_dc = DeclarativeContent(content=manifest)
         return manifest_dc
 
@@ -470,13 +473,14 @@ class ContainerFirstStage(Stage):
             )
 
         platform = {}
-        p = manifest_data["platform"]
-        platform["architecture"] = p["architecture"]
-        platform["os"] = p["os"]
-        platform["features"] = p.get("features", "")
-        platform["variant"] = p.get("variant", "")
-        platform["os.version"] = p.get("os.version", "")
-        platform["os.features"] = p.get("os.features", "")
+        # in oci-index spec, platform is an optional field
+        if p := manifest_data.get("platform", None):
+            platform["architecture"] = p["architecture"]
+            platform["os"] = p["os"]
+            platform["features"] = p.get("features", "")
+            platform["variant"] = p.get("variant", "")
+            platform["os.version"] = p.get("os.version", "")
+            platform["os.features"] = p.get("os.features", "")
         man_dc = DeclarativeContent(content=manifest)
         return {"manifest_dc": man_dc, "platform": platform, "content_data": content_data}
 
@@ -626,19 +630,31 @@ class ContainerContentSaver(ContentSaver):
                 manifest_lists.append(dc.content)
                 for listed_manifest in dc.extra_data["listed_manifests"]:
                     manifest_dc = listed_manifest["manifest_dc"]
-                    platform = listed_manifest["platform"]
-                    manifest_list_manifests.append(
-                        ManifestListManifest(
-                            manifest_list=manifest_dc.content,
-                            image_manifest=dc.content,
-                            architecture=platform["architecture"],
-                            os=platform["os"],
-                            features=platform.get("features"),
-                            variant=platform.get("variant"),
-                            os_version=platform.get("os.version"),
-                            os_features=platform.get("os.features"),
-                        )
+                    manifest_list_manifest = ManifestListManifest(
+                        manifest_list=manifest_dc.content,
+                        image_manifest=dc.content,
                     )
+                    if platform := listed_manifest.get("platform"):
+                        manifest_list_manifest.architecture = platform["architecture"]
+                        manifest_list_manifest.os = platform["os"]
+                        manifest_list_manifest.features = platform.get("features")
+                        manifest_list_manifest.variant = platform.get("variant")
+                        manifest_list_manifest.os_version = platform.get("os.version")
+                        manifest_list_manifest.os_features = platform.get("os.features")
+                    manifest_list_manifests.append(manifest_list_manifest)
+                continue
+
+            if "config_blob_dc" in dc.extra_data:
+                manifest_dc = dc.content
+                config_blob_sha256 = dc.extra_data["config_blob_dc"].content.digest
+                blob_artifact = Artifact.objects.get(
+                    sha256=config_blob_sha256.removeprefix("sha256:")
+                )
+                config_blob, _ = get_content_data(blob_artifact)
+                manifest_dc.architecture = config_blob.get("architecture", None)
+                manifest_dc.os = config_blob.get("os", None)
+                manifest_dc.save()
+
         if blob_manifests:
             BlobManifest.objects.bulk_create(blob_manifests, ignore_conflicts=True)
         if manifest_list_manifests:
