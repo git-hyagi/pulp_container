@@ -38,6 +38,8 @@ def add_pull_through_entities_to_cleanup(
 def pull_and_verify(
     anonymous_user,
     add_pull_through_entities_to_cleanup,
+    check_manifest_arch_os_size,
+    container_manifest_api,
     container_pull_through_distribution_api,
     container_distribution_api,
     container_repository_api,
@@ -76,6 +78,10 @@ def pull_and_verify(
             registry_client.pull(remote_image_path)
             remote_image = registry_client.inspect(remote_image_path)
             assert local_image[0]["Id"] == remote_image[0]["Id"]
+
+            # 2.1. check pulp manifest model fields
+            manifest = container_manifest_api.list(digest=local_image[0]["Digest"])
+            check_manifest_arch_os_size(manifest)
 
             # 3. check if the repository version has changed
             for _ in range(5):
