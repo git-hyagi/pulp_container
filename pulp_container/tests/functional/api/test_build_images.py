@@ -67,3 +67,4 @@ def test_build_image(
     manifest = manifest.to_dict()["results"][0]
     assert manifest["architecture"] == "amd64"
     assert manifest["os"] == "linux"
+    assert int(manifest["compressed_layers_size"]) > 0

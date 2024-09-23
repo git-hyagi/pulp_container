@@ -80,6 +80,8 @@ class Manifest(Content):
         architecture (models.TextField): CPU architecture for which the binaries in the image are
             designed to run.
         os (models.TextField): Operating System which the image is built to run on.
+        compressed_layers_size (models.TextField): Sum of the sizes, in bytes, of all compressed
+            layers.
 
     Relations:
         blobs (models.ManyToManyField): Many-to-many relationship with Blob.
@@ -108,6 +110,7 @@ class Manifest(Content):
     labels = models.JSONField(default=dict)
     architecture = models.TextField(null=True)
     os = models.TextField(null=True)
+    compressed_layers_size = models.TextField(null=True)
 
     is_bootable = models.BooleanField(default=False)
     is_flatpak = models.BooleanField(default=False)
@@ -130,6 +133,7 @@ class Manifest(Content):
         has_labels = self.init_labels()
         has_image_nature = self.init_image_nature()
         self.init_architecture_and_os(manifest_data)
+        self.init_compressed_layers_size(manifest_data)
         return has_annotations or has_labels or has_image_nature
 
     def init_annotations(self, manifest_data=None):
@@ -194,6 +198,18 @@ class Manifest(Content):
         config_blob, _ = get_content_data(blob_artifact)
         self.architecture = config_blob.get("architecture", None)
         self.os = config_blob.get("os", None)
+
+    def init_compressed_layers_size(self, manifest_data):
+        # manifestv2 schema1 has only blobSum definition for each layer
+        if manifest_data.get("fsLayers", None):
+            self.compressed_layers_size = 0
+            return
+
+        layers = manifest_data.get("layers")
+        compressed_size = 0
+        for layer in layers:
+            compressed_size += layer.get("size")
+        self.compressed_layers_size = compressed_size
 
     def is_bootable_image(self):
         if (

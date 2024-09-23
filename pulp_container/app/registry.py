@@ -455,11 +455,12 @@ class PullThroughDownloader:
             data=raw_text_data,
         )
 
-        # if media_type of schema1 configure only manifest architecture and os
+        # if media_type of schema1 configure only manifest architecture and compressed layers size
         if media_type in (MEDIA_TYPE.MANIFEST_V2, MEDIA_TYPE.MANIFEST_OCI):
             await sync_to_async(manifest.init_metadata)(manifest_data=manifest_data)
         else:
             await sync_to_async(manifest.init_architecture_and_os)(manifest_data=manifest_data)
+            await sync_to_async(manifest.init_compressed_layers_size)(manifest_data=manifest_data)
 
         try:
             await manifest.asave()

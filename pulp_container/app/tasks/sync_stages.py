@@ -332,12 +332,15 @@ class ContainerFirstStage(Stage):
         Handle blobs.
         """
         manifest_dc.extra_data["blob_dcs"] = []
+        compressed_size = 0
         for layer in content_data.get("layers") or content_data.get("fsLayers"):
             if not self._include_layer(layer):
                 continue
+            compressed_size += layer.get("size", 0)
             blob_dc = self.create_blob(layer)
             manifest_dc.extra_data["blob_dcs"].append(blob_dc)
             await self.put(blob_dc)
+        manifest_dc.content.compressed_layers_size = compressed_size
         layer = content_data.get("config", None)
         if layer:
             blob_dc = self.create_blob(layer, deferred_download=False)

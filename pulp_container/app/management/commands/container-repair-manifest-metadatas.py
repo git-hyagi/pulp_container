@@ -8,6 +8,7 @@ from contextlib import suppress
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import BaseCommand
+from django.db.models import Q
 
 from pulpcore.plugin.cache import SyncContentCache
 
@@ -16,8 +17,8 @@ from pulp_container.app.models import ContainerDistribution, Manifest
 
 class Command(BaseCommand):
     """
-    A management command to handle the initialization of empty architecture and os fields for
-    container images.
+    A management command to handle the initialization of empty architecture, os, and
+    compressed_layers_size fields for container images.
 
     This command retrieves a list of manifests that have a null architecture field and
     populates them with the appropriate architecture definitions sourced from the corresponding
@@ -29,7 +30,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         manifests_updated_count = 0
 
-        manifests_v1 = Manifest.objects.filter(architecture__isnull=True)
+        manifests_v1 = Manifest.objects.filter(
+            Q(architecture__isnull=True) | Q(compressed_layers_size__isnull=True)
+        )
         manifests_updated_count += self.update_manifests(manifests_v1)
 
         self.stdout.write(
@@ -50,11 +53,12 @@ class Command(BaseCommand):
             # suppress non-existing/already migrated artifacts and corrupted JSON files
             with suppress(ObjectDoesNotExist, JSONDecodeError):
                 manifest_data = json.loads(manifest.data)
-                manifest.init_metadata(manifest_data)
+                manifest.init_architecture(manifest_data)
+                manifest.init_compressed_layers_size(manifest_data)
                 manifests_to_update.append(manifest)
 
             if len(manifests_to_update) > 1000:
-                fields_to_update = ["architecture", "os"]
+                fields_to_update = ["architecture", "compressed_layers_size", "os"]
                 manifests_qs.model.objects.bulk_update(
                     manifests_to_update,
                     fields_to_update,
@@ -63,7 +67,7 @@ class Command(BaseCommand):
                 manifests_to_update.clear()
 
         if manifests_to_update:
-            fields_to_update = ["architecture", "os"]
+            fields_to_update = ["architecture", "compressed_layers_size", "os"]
             manifests_qs.model.objects.bulk_update(
                 manifests_to_update,
                 fields_to_update,

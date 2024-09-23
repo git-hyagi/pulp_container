@@ -113,6 +113,11 @@ class ManifestSerializer(NoArtifactContentSerializer):
         required=False,
         default=None,
     )
+    compressed_layers_size = serializers.CharField(
+        help_text="Specifies the sum of the sizes, in bytes, of all compressed layers",
+        required=False,
+        default=None,
+    )
 
     class Meta:
         fields = NoArtifactContentSerializer.Meta.fields + (
@@ -128,6 +133,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
             "is_flatpak",
             "architecture",
             "os",
+            "compressed_layers_size",
         )
         model = models.Manifest
 
