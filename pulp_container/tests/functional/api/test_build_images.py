@@ -66,3 +66,4 @@ def test_build_image(
     manifest = container_manifest_api.list(digest=image[0]["Digest"])
     manifest = manifest.to_dict()["results"][0]
     assert manifest["architecture"] == "amd64"
+    assert manifest["os"] == "linux"

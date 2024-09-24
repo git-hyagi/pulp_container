@@ -647,6 +647,7 @@ class ContainerContentSaver(ContentSaver):
                 )
                 config_blob, _ = get_content_data(blob_artifact)
                 manifest_dc.architecture = config_blob.get("architecture", None)
+                manifest_dc.os = config_blob.get("os", None)
                 manifest_dc.save()
 
         if blob_manifests:

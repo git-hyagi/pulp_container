@@ -71,6 +71,7 @@ def test_basic_sync(
     )
     manifest = manifest.to_dict()["results"][0]
     assert manifest["architecture"] == "amd64"
+    assert manifest["os"] == "linux"
 
 
 @pytest.mark.parallel

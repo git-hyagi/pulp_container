@@ -55,6 +55,7 @@ def test_push_using_registry_client_admin(
     manifest = container_manifest_api.list(digest=local_image[0]["Digest"])
     manifest = manifest.to_dict()["results"][0]
     assert manifest["architecture"] == "amd64"
+    assert manifest["os"] == "linux"
 
     # ensure that same content can be pushed twice without permission errors
     local_registry.tag_and_push(image_path, local_url)

@@ -86,6 +86,7 @@ def add_image_from_directory_to_repository(path, repository, tag):
         blob_artifact = Artifact.objects.get(sha256=config_blob.digest.removeprefix("sha256:"))
         config_blob_dict, _ = get_content_data(blob_artifact)
         manifest.architecture = config_blob_dict.get("architecture", None)
+        manifest.os = config_blob_dict.get("os", None)
         manifest.save()
 
         pks_to_add = []

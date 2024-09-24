@@ -108,6 +108,11 @@ class ManifestSerializer(NoArtifactContentSerializer):
         required=False,
         default=None,
     )
+    os = serializers.CharField(
+        help_text="The name of the operating system which the image is built to run on.",
+        required=False,
+        default=None,
+    )
 
     class Meta:
         fields = NoArtifactContentSerializer.Meta.fields + (
@@ -122,6 +127,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
             "is_bootable",
             "is_flatpak",
             "architecture",
+            "os",
         )
         model = models.Manifest
 

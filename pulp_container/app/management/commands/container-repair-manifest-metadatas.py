@@ -16,7 +16,7 @@ from pulp_container.app.models import ContainerDistribution, Manifest
 
 class Command(BaseCommand):
     """
-    A management command to handle the initialization of empty architecture fields for
+    A management command to handle the initialization of empty architecture and os fields for
     container images.
 
     This command retrieves a list of manifests that have a null architecture field and
@@ -54,7 +54,7 @@ class Command(BaseCommand):
                 manifests_to_update.append(manifest)
 
             if len(manifests_to_update) > 1000:
-                fields_to_update = ["architecture"]
+                fields_to_update = ["architecture", "os"]
                 manifests_qs.model.objects.bulk_update(
                     manifests_to_update,
                     fields_to_update,
@@ -63,7 +63,7 @@ class Command(BaseCommand):
                 manifests_to_update.clear()
 
         if manifests_to_update:
-            fields_to_update = ["architecture"]
+            fields_to_update = ["architecture", "os"]
             manifests_qs.model.objects.bulk_update(
                 manifests_to_update,
                 fields_to_update,
