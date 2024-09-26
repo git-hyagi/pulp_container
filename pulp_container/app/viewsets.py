@@ -937,7 +937,7 @@ class ContainerRepositoryViewSet(
         )
 
         serializer.is_valid(raise_exception=True)
-        serialized_data = serializer.containerfile_validation(serializer.validated_data)
+        serialized_data = serializer.deferred_files_validation(serializer.validated_data)
 
         containerfile_tempfile_pk = None
         if containerfile := serialized_data.get("containerfile", None):
@@ -946,20 +946,17 @@ class ContainerRepositoryViewSet(
             containerfile_tempfile_pk = str(temp_file.pk)
 
         containerfile_name = serialized_data.get("containerfile_name", None)
-        content_artifact_pks = serialized_data.get("content_artifact_pks", None)
-        build_context_repo = serialized_data.get("build_context_repo", None)
         tag = serialized_data["tag"]
 
         result = dispatch(
             tasks.build_image,
             exclusive_resources=[repository],
-            shared_resources=[build_context_repo],
             kwargs={
                 "containerfile_name": containerfile_name,
                 "containerfile_tempfile_pk": containerfile_tempfile_pk,
                 "tag": tag,
                 "repository_pk": str(repository.pk),
-                "content_artifact_pks": content_artifact_pks,
+                "build_context_pk": serialized_data.get("build_context_pk", None),
             },
         )
         return OperationPostponedResponse(result, request)

@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from uuid import uuid4
 
+from pulpcore.app.models import RepositoryVersion
 from pulp_container.app.models import (
     Blob,
     BlobManifest,
@@ -101,7 +102,7 @@ def add_image_from_directory_to_repository(path, repository, tag):
 def build_image(
     containerfile_name=None,
     containerfile_tempfile_pk=None,
-    content_artifact_pks=None,
+    build_context_pk=None,
     repository_pk=None,
     tag=None,
 ):
@@ -115,8 +116,7 @@ def build_image(
         containerfile_name (str): The Containerfile relative_path from the build_context repository
         containerfile_tempfile_pk (str): The pk of a PulpTemporaryFile that contains
                                          the Containerfile
-        content_artifact_pk (list): The list of pks of ContentArtifacts used in the build context
-                                    of the Containerfile
+        build_context_pk (str): The pk of the RepositoryVersion used as the build context
         repository_pk (str): The pk of a Repository to add the OCI container image
         tag (str): Tag name for the new image in the repository
 
@@ -138,8 +138,10 @@ def build_image(
         context_path = os.path.join(working_directory, "context")
         os.makedirs(context_path, exist_ok=True)
 
-        if content_artifact_pks:
-            content_artifacts = ContentArtifact.objects.filter(pk__in=content_artifact_pks)
+        if build_context_pk:
+            content_artifacts = ContentArtifact.objects.filter(
+                content__pulp_type="file.file", content__repositories__in=[build_context_pk]
+            ).order_by("-content__pulp_created")
             for content_artifact in content_artifacts.select_related("artifact").iterator():
                 if content_artifact.relative_path == containerfile_name:
                     containerfile_artifact = content_artifact.artifact

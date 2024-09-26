@@ -10,6 +10,7 @@ from pulpcore.plugin.models import (
     Remote,
     Repository,
     RepositoryVersion,
+    RepositoryContent,
 )
 from pulpcore.plugin.serializers import (
     ContentRedirectContentGuardSerializer,
@@ -29,8 +30,13 @@ from pulpcore.plugin.serializers import (
     ValidateFieldsMixin,
 )
 
+from pulp_file.app.models import FileContent
+
 from pulp_container.app import models
 from pulp_container.constants import SIGNATURE_TYPE
+
+from pulp_container.app.access_policy import RegistryAccessPolicy
+from rest_access_policy import PermittedPkRelatedField, PermittedSlugRelatedField
 
 VALID_SIGNATURE_NAME_REGEX = r"^sha256:[0-9a-f]{64}@[0-9a-f]{32}$"
 VALID_TAG_REGEX = r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
@@ -799,32 +805,31 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
 
         return data
 
-    def containerfile_validation(self, data):
+    def deferred_files_validation(self, data):
         """
-        Defer the validation of the `Containerfile` to avoid rerunning unnecessary
-        database queries when checking permissions (DRF Access Policy).
+        Defer the validation of on_demand_artifacts and the `Containerfile` to avoid rerunning
+        unnecessary database queries when checking permissions (DRF Access Policy).
         """
         if build_context := data.get("build_context", None):
-            data["content_artifact_pks"] = []
-            repository_version = RepositoryVersion.objects.get(pk=build_context.pk)
-            content_artifacts = ContentArtifact.objects.filter(
-                content__pulp_type="file.file", content__in=repository_version.content
-            ).order_by("-content__pulp_created")
-            containerfile_found = False
-            for content_artifact in content_artifacts.select_related("artifact").iterator():
-                if not content_artifact.artifact:
+
+            # check if the on_demand_artifacts exist
+            for on_demand_artifact in build_context.on_demand_artifacts.iterator():
+                if not on_demand_artifact.content_artifact.artifact:
                     raise serializers.ValidationError(
                         _(
                             "It is not possible to use File content synced with on-demand "
                             "policy without pulling the data first."
                         )
                     )
-                containerfile_name = data.get("containerfile_name", None)
-                if containerfile_name and content_artifact.relative_path == containerfile_name:
-                    containerfile_found = True
-                data["content_artifact_pks"].append(content_artifact.pk)
 
-            if data.get("containerfile_name") and not containerfile_found:
+            # check if the containerfile_name exists in the build_context (File Repository)
+            if (
+                data.get("containerfile_name", None)
+                and not FileContent.objects.filter(
+                    repositories__in=[build_context.repository.pk],
+                    relative_path=data["containerfile_name"],
+                ).exists()
+            ):
                 raise serializers.ValidationError(
                     _(
                         'Could not find the Containerfile "'
@@ -833,7 +838,7 @@ class OCIBuildImageSerializer(ValidateFieldsMixin, serializers.Serializer):
                     )
                 )
 
-            data["build_context_repo"] = repository_version.repository
+            data["build_context_pk"] = build_context.repository.pk
 
         return data
 
