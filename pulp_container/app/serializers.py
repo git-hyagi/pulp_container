@@ -113,7 +113,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
         required=False,
         default=None,
     )
-    compressed_layers_size = serializers.CharField(
+    compressed_layers_size = serializers.IntegerField(
         help_text="Specifies the sum of the sizes, in bytes, of all compressed layers",
         required=False,
         default=None,

@@ -56,7 +56,7 @@ def test_push_using_registry_client_admin(
     manifest = manifest.to_dict()["results"][0]
     assert manifest["architecture"] == "amd64"
     assert manifest["os"] == "linux"
-    assert int(manifest["compressed_layers_size"]) > 0
+    assert manifest["compressed_layers_size"] > 0
 
     # ensure that same content can be pushed twice without permission errors
     local_registry.tag_and_push(image_path, local_url)

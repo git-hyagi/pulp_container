@@ -53,7 +53,7 @@ class Command(BaseCommand):
             # suppress non-existing/already migrated artifacts and corrupted JSON files
             with suppress(ObjectDoesNotExist, JSONDecodeError):
                 manifest_data = json.loads(manifest.data)
-                manifest.init_architecture(manifest_data)
+                manifest.init_architecture_and_os(manifest_data)
                 manifest.init_compressed_layers_size(manifest_data)
                 manifests_to_update.append(manifest)
 

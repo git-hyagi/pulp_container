@@ -110,7 +110,7 @@ class Manifest(Content):
     labels = models.JSONField(default=dict)
     architecture = models.TextField(null=True)
     os = models.TextField(null=True)
-    compressed_layers_size = models.TextField(null=True)
+    compressed_layers_size = models.IntegerField(null=True)
 
     is_bootable = models.BooleanField(default=False)
     is_flatpak = models.BooleanField(default=False)
