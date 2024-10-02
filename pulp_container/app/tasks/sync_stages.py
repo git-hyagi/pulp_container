@@ -473,13 +473,14 @@ class ContainerFirstStage(Stage):
             )
 
         platform = {}
-        p = manifest_data["platform"]
-        platform["architecture"] = p["architecture"]
-        platform["os"] = p["os"]
-        platform["features"] = p.get("features", "")
-        platform["variant"] = p.get("variant", "")
-        platform["os.version"] = p.get("os.version", "")
-        platform["os.features"] = p.get("os.features", "")
+        # in oci-index spec, platform is an optional field
+        if p := manifest_data.get("platform", None):
+            platform["architecture"] = p["architecture"]
+            platform["os"] = p["os"]
+            platform["features"] = p.get("features", "")
+            platform["variant"] = p.get("variant", "")
+            platform["os.version"] = p.get("os.version", "")
+            platform["os.features"] = p.get("os.features", "")
         man_dc = DeclarativeContent(content=manifest)
         return {"manifest_dc": man_dc, "platform": platform, "content_data": content_data}
 
@@ -629,19 +630,20 @@ class ContainerContentSaver(ContentSaver):
                 manifest_lists.append(dc.content)
                 for listed_manifest in dc.extra_data["listed_manifests"]:
                     manifest_dc = listed_manifest["manifest_dc"]
-                    platform = listed_manifest["platform"]
-                    manifest_list_manifests.append(
-                        ManifestListManifest(
-                            manifest_list=manifest_dc.content,
-                            image_manifest=dc.content,
-                            architecture=platform["architecture"],
-                            os=platform["os"],
-                            features=platform.get("features"),
-                            variant=platform.get("variant"),
-                            os_version=platform.get("os.version"),
-                            os_features=platform.get("os.features"),
-                        )
+                    manifest_list_manifest = ManifestListManifest(
+                        manifest_list=manifest_dc.content,
+                        image_manifest=dc.content,
                     )
+                    if platform := listed_manifest.get("platform"):
+                        manifest_list_manifest.architecture = platform["architecture"]
+                        manifest_list_manifest.os = platform["os"]
+                        manifest_list_manifest.features = platform.get("features")
+                        manifest_list_manifest.variant = platform.get("variant")
+                        manifest_list_manifest.os_version = platform.get("os.version")
+                        manifest_list_manifest.os_features = platform.get("os.features")
+                    manifest_list_manifests.append(manifest_list_manifest)
+                continue
+
             if "config_blob_dc" in dc.extra_data:
                 manifest_dc = dc.content
                 config_blob_sha256 = dc.extra_data["config_blob_dc"].content.digest

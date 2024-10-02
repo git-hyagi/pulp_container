@@ -80,7 +80,7 @@ class Manifest(Content):
         architecture (models.TextField): CPU architecture for which the binaries in the image are
             designed to run.
         os (models.TextField): Operating System which the image is built to run on.
-        compressed_layers_size (models.TextField): Sum of the sizes, in bytes, of all compressed
+        compressed_layers_size (models.IntegerField): Sum of the sizes, in bytes, of all compressed
             layers.
 
     Relations:
@@ -257,8 +257,9 @@ class ManifestListManifest(models.Model):
         manifest_list (models.ForeignKey): Many-to-one relationship with ManifestList.
     """
 
-    architecture = models.TextField()
-    os = models.TextField()
+    # in oci-index spec, platform is an optional field
+    architecture = models.TextField(default="", blank=True)
+    os = models.TextField(default="", blank=True)
     os_version = models.TextField(default="", blank=True)
     os_features = models.TextField(default="", blank=True)
     features = models.TextField(default="", blank=True)
