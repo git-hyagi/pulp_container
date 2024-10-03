@@ -132,8 +132,6 @@ class Manifest(Content):
         has_annotations = self.init_annotations(manifest_data)
         has_labels = self.init_labels()
         has_image_nature = self.init_image_nature()
-        self.init_architecture_and_os(manifest_data)
-        self.init_compressed_layers_size(manifest_data)
         return has_annotations or has_labels or has_image_nature
 
     def init_annotations(self, manifest_data=None):

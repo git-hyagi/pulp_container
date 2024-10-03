@@ -394,6 +394,7 @@ class ContainerFirstStage(Stage):
             data=raw_text_data,
             annotations=manifest_data.get("annotations", {}),
             architecture=manifest_data.get("architecture", None),
+            os=manifest_data.get("os",None),
         )
         manifest_dc = DeclarativeContent(content=manifest)
         return manifest_dc
@@ -434,6 +435,8 @@ class ContainerFirstStage(Stage):
             media_type=media_type,
             data=raw_text_data,
             annotations=content_data.get("annotations", {}),
+            architecture = content_data.get("architecture",None),
+            os = content_data.get("os",None),
         )
         return content_data, manifest
 
@@ -481,6 +484,8 @@ class ContainerFirstStage(Stage):
             platform["variant"] = p.get("variant", "")
             platform["os.version"] = p.get("os.version", "")
             platform["os.features"] = p.get("os.features", "")
+            manifest.os = p["os"]
+            manifest.architecture = p["architecture"]
         man_dc = DeclarativeContent(content=manifest)
         return {"manifest_dc": man_dc, "platform": platform, "content_data": content_data}
 
@@ -646,6 +651,11 @@ class ContainerContentSaver(ContentSaver):
 
             if "config_blob_dc" in dc.extra_data:
                 manifest_dc = dc.content
+                # if the os or architecture is already defined it means we could extract these
+                # values from manifest_list.platform.{os,architecture}
+                if manifest_dc.os or manifest_dc.architecture:
+                    continue
+
                 config_blob_sha256 = dc.extra_data["config_blob_dc"].content.digest
                 blob_artifact = Artifact.objects.get(
                     sha256=config_blob_sha256.removeprefix("sha256:")

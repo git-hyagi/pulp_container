@@ -114,24 +114,26 @@ class Command(BaseCommand):
             manifest_data, raw_bytes_data = get_content_data(manifest_artifact)
             manifest.data = raw_bytes_data.decode("utf-8")
 
-            if not (
-                manifest.annotations
-                or manifest.labels
-                or manifest.architecture
-                or manifest.os
-                or manifest.compressed_layers_size
-            ):
+            if not (manifest.annotations or manifest.labels):
                 manifest.init_metadata(manifest_data)
 
+            if self.needs_os_arch_size_update(manifest):
+                self.init_manifest_os_arch_size(manifest)
             manifest._artifacts.clear()
-
             return True
-        elif manifest.media_type not in [MEDIA_TYPE.MANIFEST_LIST, MEDIA_TYPE.INDEX_OCI] and not (
-            manifest.architecture or manifest.os or manifest.compressed_layers_size
-        ):
-            manifest_data = json.loads(manifest.data)
-            manifest.init_architecture_and_os(manifest_data)
-            manifest.init_compressed_layers_size(manifest_data)
+
+        elif self.needs_os_arch_size_update(manifest):
+            self.init_manifest_os_arch_size(manifest)
             return True
 
         return False
+
+    def needs_os_arch_size_update(self,manifest):
+        return manifest.media_type not in [MEDIA_TYPE.MANIFEST_LIST, MEDIA_TYPE.INDEX_OCI] and not (
+            manifest.architecture or manifest.os or manifest.compressed_layers_size
+        )
+
+    def init_manifest_os_arch_size(self,manifest):
+        manifest_data = json.loads(manifest.data)
+        manifest.init_architecture_and_os(manifest_data)
+        manifest.init_compressed_layers_size(manifest_data)
