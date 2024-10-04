@@ -72,10 +72,10 @@ class ValidateResourceSizeMixin:
         content_type = response.content_type
         is_cosign_tag = fnmatch.fnmatch(response.url.name, "sha256-*.sig")
         if isinstance(self, NoAuthSignatureDownloader) or is_cosign_tag:
-            max_resource_size = settings.get("SIGNATURE_PAYLOAD_MAX_SIZE", None)
+            max_resource_size = settings["SIGNATURE_PAYLOAD_MAX_SIZE"]
             content_type = "Signature"
         elif content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
-            max_resource_size = settings.get("MANIFEST_PAYLOAD_MAX_SIZE", None)
+            max_resource_size = settings["MANIFEST_PAYLOAD_MAX_SIZE"]
             content_type = "Manifest"
         return content_type, max_resource_size
 

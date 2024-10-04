@@ -1381,8 +1381,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
                 if not subchunk:
                     break
                 size += len(subchunk)
-                manifest_payload_max_size = settings.get("MANIFEST_PAYLOAD_MAX_SIZE", None)
-                if manifest_payload_max_size and size > manifest_payload_max_size:
+                if size > settings["MANIFEST_PAYLOAD_MAX_SIZE"]:
                     temp_file.flush()
                     raise PayloadTooLarge()
                 temp_file.write(subchunk)
@@ -1456,7 +1455,7 @@ class Signatures(ContainerRegistryApiMixin, ViewSet):
         except models.Manifest.DoesNotExist:
             raise ManifestNotFound(reference=pk)
 
-        signature_max_size = settings.get("SIGNATURE_PAYLOAD_MAX_SIZE", None)
+        signature_max_size = settings["SIGNATURE_PAYLOAD_MAX_SIZE"]
         if signature_max_size:
             meta = request.META
             try:
