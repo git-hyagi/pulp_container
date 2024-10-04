@@ -27,7 +27,7 @@ from pulp_container.app.models import (
     ManifestSignature,
     Tag,
 )
-from pulp_container.app.exceptions import InvalidRequest
+from pulp_container.app.exceptions import PayloadTooLarge
 from pulp_container.app.utils import (
     extract_data_from_signature,
     urlpath_sanitize,
@@ -65,7 +65,7 @@ class ContainerFirstStage(Stage):
         downloader = self.remote.get_downloader(url=manifest_url)
         try:
             response = await downloader.run(extra_data={"headers": V2_ACCEPT_HEADERS})
-        except InvalidRequest as e:
+        except PayloadTooLarge as e:
             # if it failed to download the manifest, log the error and
             # there is nothing to return
             log.warning(e.args[0])
@@ -555,7 +555,7 @@ class ContainerFirstStage(Stage):
                         "{} is not accessible, can't sync an image signature. "
                         "Error: {} {}".format(signature_url, exc.status, exc.message)
                     )
-                except InvalidRequest as e:
+                except PayloadTooLarge as e:
                     log.warning(
                         "Failed to sync signature {}. Error: {}".format(signature_url, e.args[0])
                     )

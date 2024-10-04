@@ -13,6 +13,7 @@ import hashlib
 import re
 
 from aiohttp.client_exceptions import ClientResponseError, ClientConnectionError
+from io import BytesIO
 from itertools import chain
 from urllib.parse import urljoin, urlparse, urlunparse, parse_qs, urlencode
 from tempfile import NamedTemporaryFile
@@ -869,6 +870,7 @@ class BlobUploads(ContainerRegistryApiMixin, ViewSet):
         """
         _, repository = self.get_dr_push(request, path)
         upload = get_object_or_404(models.Upload, repository=repository, pk=pk)
+        chunk = request.stream or BytesIO()
         if range_header := request.headers.get("Content-Range"):
             found = self.content_range_pattern.match(range_header)
             if not found:
@@ -889,7 +891,7 @@ class BlobUploads(ContainerRegistryApiMixin, ViewSet):
 
             # if more chunks
             if range_header:
-                chunk = ContentFile(request.stream.body)
+                chunk = ContentFile(chunk.read())
                 upload.append(chunk, upload.size)
             else:
                 artifact = self.create_single_chunk_artifact(request)
@@ -913,7 +915,9 @@ class BlobUploads(ContainerRegistryApiMixin, ViewSet):
         _, repository = self.get_dr_push(request, path)
 
         digest = request.query_params["digest"]
-        last_chunk = ContentFile(request.stream.body)
+        # if request body is 0 no instance of stream will be created
+        chunk = request.stream or BytesIO()
+        last_chunk = ContentFile(request.read())
         upload = get_object_or_404(models.Upload, pk=pk, repository=repository)
 
         if artifact := upload.artifact:

@@ -161,7 +161,7 @@ class PayloadTooLarge(APIException):
     default_code = "payload_too_large"
 
     def __init__(self, message=None):
-        """Initialize the exception with the digest of a signed manifest."""
+        """Initialize the exception with the message for invalid manifest."""
         message = message or "manifest invalid"
         super().__init__(
             detail={
