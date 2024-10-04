@@ -18,8 +18,7 @@ from pulp_container.constants import (
     MEGABYTE,
     V2_ACCEPT_HEADERS,
 )
-from pulp_container.app.exceptions import InvalidRequest
-from pulp_container.app.utils import resource_body_size_exceeded_msg
+from pulp_container.app.exceptions import PayloadTooLarge
 
 log = getLogger(__name__)
 
@@ -52,7 +51,7 @@ class ValidateResourceSizeMixin:
             total_size += len(chunk)
             if max_body_size and total_size > max_body_size:
                 await self.finalize()
-                raise InvalidRequest(resource_body_size_exceeded_msg(content_type, max_body_size))
+                raise PayloadTooLarge()
             if not chunk:
                 await self.finalize()
                 break  # the download is done

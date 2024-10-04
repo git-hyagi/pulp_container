@@ -5,8 +5,8 @@ Signatures if they exceed a defined size. A use case for this feature is to avoi
 when synchronizing remote repositories with malicious or compromised containter images.
 To implement this, use the following settings:
 ```
-MANIFEST_MAX_PAYLOAD_SIZE=<bytes>
-SIGNATURE_MAX_PAYLOAD_SIZE=<bytes>
+MANIFEST_PAYLOAD_MAX_SIZE=<bytes>
+SIGNATURE_PAYLOAD_MAX_SIZE=<bytes>
 ```
 
 !!! info

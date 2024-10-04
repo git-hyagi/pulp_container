@@ -342,10 +342,3 @@ def filter_resources(element_list, include_patterns, exclude_patterns):
     if exclude_patterns:
         element_list = filter(partial(exclude, patterns=exclude_patterns), element_list)
     return list(element_list)
-
-
-def resource_body_size_exceeded_msg(content_type, max_resource_size):
-    return (
-        f"{content_type} body size exceeded the maximum allowed size of "
-        f"{max_resource_size} bytes."
-    )
