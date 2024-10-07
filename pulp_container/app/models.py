@@ -32,7 +32,7 @@ from pulpcore.plugin.util import gpg_verify
 
 from . import downloaders
 from pulp_container.app.utils import get_content_data
-from pulp_container.constants import MEDIA_TYPE, SIGNATURE_TYPE
+from pulp_container.constants import MANIFEST_TYPE, MEDIA_TYPE, SIGNATURE_TYPE
 
 
 logger = getLogger(__name__)
@@ -72,6 +72,7 @@ class Manifest(Content):
         digest (models.TextField): The manifest digest.
         schema_version (models.IntegerField): The manifest schema version.
         media_type (models.TextField): The manifest media type.
+        type (models.TextField): The manifest media type.
         data (models.TextField): The manifest's data in text format.
         annotations (models.JSONField): Metadata stored inside the image manifest.
         labels (models.JSONField): Metadata stored inside the image configuration.
@@ -99,6 +100,7 @@ class Manifest(Content):
     digest = models.TextField(db_index=True)
     schema_version = models.IntegerField()
     media_type = models.TextField(choices=MANIFEST_CHOICES)
+    type = models.CharField(null=True, default="unknown")
     data = models.TextField(null=True)
 
     annotations = models.JSONField(default=dict)
@@ -159,9 +161,11 @@ class Manifest(Content):
             # there is no case where the manifest is both bootable and flatpak-based
             if manifest.is_bootable:
                 self.is_bootable = True
+                self.type = MANIFEST_TYPE.BOOTABLE
                 return True
             elif manifest.is_flatpak:
                 self.is_flatpak = True
+                self.type = MANIFEST_TYPE.FLATPAK
                 return True
 
         return False
@@ -169,10 +173,15 @@ class Manifest(Content):
     def init_manifest_nature(self):
         if self.is_bootable_image():
             self.is_bootable = True
+            self.type = MANIFEST_TYPE.BOOTABLE
             return True
         elif self.is_flatpak_image():
             self.is_flatpak = True
+            self.type = MANIFEST_TYPE.FLATPAK
             return True
+        elif self.is_helm_image():
+            self.type = MANIFEST_TYPE.HELM
+            return False
         else:
             return False
 
@@ -187,6 +196,13 @@ class Manifest(Content):
 
     def is_flatpak_image(self):
         return True if self.labels.get("org.flatpak.ref") else False
+
+    def is_helm_image(self):
+        json_manifest = json.loads(self.data)
+        return (
+            json_manifest.get("config").get("mediaType")
+            == "application/vnd.cncf.helm.config.v1+json"
+        )
 
     class Meta:
         default_related_name = "%(app_label)s_%(model_name)s"

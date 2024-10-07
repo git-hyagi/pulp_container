@@ -12,6 +12,7 @@ from pulpcore.plugin.models import Artifact, ProgressReport, Remote
 from pulpcore.plugin.stages import DeclarativeArtifact, DeclarativeContent, Stage, ContentSaver
 
 from pulp_container.constants import (
+    MANIFEST_TYPE,
     MEDIA_TYPE,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
@@ -364,6 +365,7 @@ class ContainerFirstStage(Stage):
             media_type=media_type,
             annotations=manifest_list_data.get("annotations", {}),
             data=raw_text_data,
+            #type = 
         )
 
         manifest_list_dc = DeclarativeContent(content=manifest_list)
@@ -391,6 +393,8 @@ class ContainerFirstStage(Stage):
             data=raw_text_data,
             annotations=manifest_data.get("annotations", {}),
         )
+
+        manifest.init_manifest_nature()
 
         manifest_dc = DeclarativeContent(content=manifest)
         return manifest_dc

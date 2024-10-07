@@ -71,3 +71,12 @@ MEGABYTE = 1_000_000
 SIGNATURE_PAYLOAD_MAX_SIZE = 4 * MEGABYTE
 
 SIGNATURE_API_EXTENSION_VERSION = 2
+
+MANIFEST_TYPE = SimpleNamespace(
+    BOOTABLE="bootable",
+    FLATPAK="flatpak",
+    HELM="helm",
+    UNKNOWN="unknown",
+    OCI_INDEX="oci-index",
+    MANIFEST_LIST="manifestlist",
+)
