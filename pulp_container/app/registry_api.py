@@ -1365,7 +1365,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
             manifest_type = MANIFEST_TYPE.MANIFEST_LIST
         elif media_type == MEDIA_TYPE.INDEX_OCI:
             manifest_type = MANIFEST_TYPE.OCI_INDEX
-        #else:
+        # else:
         #    manifest.init_manifest_nature()
 
         manifest.type = manifest_type

@@ -20,6 +20,7 @@ MEDIA_TYPE = SimpleNamespace(
     FOREIGN_BLOB_OCI_TAR_ZSTD="application/vnd.oci.image.layer.nondistributable.v1.tar+zstd",
     OCI_EMPTY_JSON="application/vnd.oci.empty.v1+json",
     HELM="application/vnd.cncf.helm.config.v1+json",
+    COSIGN="application/vnd.dev.cosign.simplesigning.v1+json",
 )
 
 V2_ACCEPT_HEADERS = {
@@ -78,7 +79,8 @@ MANIFEST_TYPE = SimpleNamespace(
     BOOTABLE="bootable",
     FLATPAK="flatpak",
     HELM="helm",
-    UNKNOWN="unknown",
     OCI_INDEX="oci-index",
     MANIFEST_LIST="manifestlist",
+    SIGNATURE="signature",
+    UNKNOWN="unknown",
 )

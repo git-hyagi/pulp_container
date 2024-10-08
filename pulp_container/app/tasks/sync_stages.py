@@ -366,7 +366,7 @@ class ContainerFirstStage(Stage):
             annotations=manifest_list_data.get("annotations", {}),
             data=raw_text_data,
         )
-        
+
         if media_type == MEDIA_TYPE.MANIFEST_LIST:
             manifest_list.type = MANIFEST_TYPE.MANIFEST_LIST
         elif media_type == MEDIA_TYPE.INDEX_OCI:
