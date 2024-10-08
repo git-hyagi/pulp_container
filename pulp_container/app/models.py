@@ -182,6 +182,9 @@ class Manifest(Content):
         elif self.is_helm_image():
             self.type = MANIFEST_TYPE.HELM
             return False
+        elif self.is_manifest_image():
+            self.type = MANIFEST_TYPE.IMAGE
+            return False
         else:
             return False
 
@@ -199,10 +202,10 @@ class Manifest(Content):
 
     def is_helm_image(self):
         json_manifest = json.loads(self.data)
-        return (
-            json_manifest.get("config").get("mediaType")
-            == "application/vnd.cncf.helm.config.v1+json"
-        )
+        return json_manifest.get("config").get("mediaType") == MEDIA_TYPE.HELM
+
+    def is_manifest_image(self):
+        return self.media_type in (MEDIA_TYPE.MANIFEST_OCI, MEDIA_TYPE.MANIFEST_V2)
 
     class Meta:
         default_related_name = "%(app_label)s_%(model_name)s"

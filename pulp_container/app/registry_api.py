@@ -90,6 +90,8 @@ from pulp_container.app.utils import (
 )
 from pulp_container.constants import (
     EMPTY_BLOB,
+    MANIFEST_TYPE,
+    MEDIA_TYPE,
     SIGNATURE_API_EXTENSION_VERSION,
     SIGNATURE_HEADER,
     SIGNATURE_PAYLOAD_MAX_SIZE,
@@ -1351,13 +1353,23 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
             return ManifestResponse(manifest, path, request, status=201)
 
     def _init_manifest(self, manifest_digest, media_type, raw_text_data, config_blob=None):
-        return models.Manifest(
+        manifest = models.Manifest(
             digest=manifest_digest,
             schema_version=2,
             media_type=media_type,
             config_blob=config_blob,
             data=raw_text_data,
         )
+        manifest_type = None
+        if media_type == MEDIA_TYPE.MANIFEST_LIST:
+            manifest_type = MANIFEST_TYPE.MANIFEST_LIST
+        elif media_type == MEDIA_TYPE.INDEX_OCI:
+            manifest_type = MANIFEST_TYPE.OCI_INDEX
+        #else:
+        #    manifest.init_manifest_nature()
+
+        manifest.type = manifest_type
+        return manifest
 
     def _save_manifest(self, manifest):
         try:
