@@ -100,7 +100,7 @@ class Manifest(Content):
     digest = models.TextField(db_index=True)
     schema_version = models.IntegerField()
     media_type = models.TextField(choices=MANIFEST_CHOICES)
-    type = models.CharField(null=True, default="unknown")
+    type = models.CharField(null=True)
     data = models.TextField(null=True)
 
     annotations = models.JSONField(default=dict)
@@ -181,15 +181,15 @@ class Manifest(Content):
             return True
         elif self.is_helm_image():
             self.type = MANIFEST_TYPE.HELM
-            return False
+            return True
         elif self.is_cosign():
             self.type = MANIFEST_TYPE.SIGNATURE
-            return False
+            return True
         elif self.is_manifest_image():
             self.type = MANIFEST_TYPE.IMAGE
-            return False
-        else:
-            return False
+            return True
+
+        return False
 
     def is_bootable_image(self):
         if (
