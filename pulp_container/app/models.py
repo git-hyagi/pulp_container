@@ -174,25 +174,38 @@ class Manifest(Content):
         return updated_type
 
     def init_manifest_nature(self):
-        if self.is_bootable_image():
-            self.is_bootable = True
-            self.type = MANIFEST_TYPE.BOOTABLE
-            return True
-        elif self.is_flatpak_image():
-            self.is_flatpak = True
-            self.type = MANIFEST_TYPE.FLATPAK
-            return True
-        elif self.is_helm_image():
-            self.type = MANIFEST_TYPE.HELM
-            return True
-        elif self.is_cosign():
-            self.type = MANIFEST_TYPE.SIGNATURE
-            return True
-        elif self.is_manifest_image():
-            self.type = MANIFEST_TYPE.IMAGE
-            return True
+        known_types = self.known_types()
+        for manifest_type in known_types.values():
+            func = manifest_type["check_function"]
+            if func():
+                self.type = manifest_type["type"]
+
+                # set custom attributes (is_flatpak, is_bootable) to keep compatibility
+                if manifest_type.get("custom", None):
+                    custom_key_name = list(manifest_type["custom"])[0]
+                    custom_key_value = manifest_type["custom"][custom_key_name]
+                    setattr(self, custom_key_name, custom_key_value)
+
+                return True
 
         return False
+
+    def known_types(self):
+        return {
+            "bootable": {
+                "check_function": self.is_bootable_image,
+                "type": MANIFEST_TYPE.BOOTABLE,
+                "custom": {"is_bootable": True},
+            },
+            "flatpak": {
+                "check_function": self.is_flatpak_image,
+                "type": MANIFEST_TYPE.FLATPAK,
+                "custom": {"is_flatpak": True},
+            },
+            "helm": {"check_function": self.is_helm_image, "type": MANIFEST_TYPE.HELM},
+            "sign": {"check_function": self.is_cosign, "type": MANIFEST_TYPE.SIGNATURE},
+            "image": {"check_function": self.is_manifest_image, "type": MANIFEST_TYPE.IMAGE},
+        }
 
     def is_bootable_image(self):
         if (
@@ -224,7 +237,7 @@ class Manifest(Content):
         return any(
             layers.get("mediaType", None) == MEDIA_TYPE.COSIGN for layers in json_manifest["layers"]
         )
-    
+
     def manifest_list_type(self):
         if self.media_type == MEDIA_TYPE.MANIFEST_LIST:
             return MANIFEST_TYPE.MANIFEST_LIST
