@@ -206,7 +206,7 @@ class Manifest(Content):
     def is_helm_image(self):
         json_manifest = json.loads(self.data)
         # schema1 does not have config, just return since it is deprecated
-        if not json_manifest.get("config",None):
+        if not json_manifest.get("config", None):
             return False
         return json_manifest.get("config").get("mediaType") == MEDIA_TYPE.HELM
 
@@ -216,7 +216,7 @@ class Manifest(Content):
     def is_cosign(self):
         json_manifest = json.loads(self.data)
         # schema1 has fsLayers instead of layers, just return since it is deprecated
-        if not json_manifest.get("layers",None):
+        if not json_manifest.get("layers", None):
             return False
         return any(
             layers.get("mediaType", None) == MEDIA_TYPE.COSIGN for layers in json_manifest["layers"]
