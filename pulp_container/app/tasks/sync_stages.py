@@ -367,11 +367,7 @@ class ContainerFirstStage(Stage):
             data=raw_text_data,
         )
 
-        if media_type == MEDIA_TYPE.MANIFEST_LIST:
-            manifest_list.type = MANIFEST_TYPE.MANIFEST_LIST
-        elif media_type == MEDIA_TYPE.INDEX_OCI:
-            manifest_list.type = MANIFEST_TYPE.OCI_INDEX
-
+        manifest_list.type = manifest_list.manifest_list_type()
         manifest_list_dc = DeclarativeContent(content=manifest_list)
         manifest_list_dc.extra_data["listed_manifests"] = []
         return manifest_list_dc

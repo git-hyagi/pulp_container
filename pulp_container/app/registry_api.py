@@ -1240,7 +1240,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
             # once relations for listed manifests are established, it is
             # possible to initialize the nature of the manifest list
             if manifest.init_manifest_list_nature():
-                manifest.save(update_fields=["is_bootable", "is_flatpak"])
+                manifest.save(update_fields=["is_bootable", "is_flatpak", "type"])
 
             found_blobs = models.Blob.objects.filter(
                 digest__in=found_manifests.values_list("blobs__digest"),
@@ -1360,15 +1360,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
             config_blob=config_blob,
             data=raw_text_data,
         )
-        manifest_type = None
-        if media_type == MEDIA_TYPE.MANIFEST_LIST:
-            manifest_type = MANIFEST_TYPE.MANIFEST_LIST
-        elif media_type == MEDIA_TYPE.INDEX_OCI:
-            manifest_type = MANIFEST_TYPE.OCI_INDEX
-        # else:
-        #    manifest.init_manifest_nature()
-
-        manifest.type = manifest_type
+        #manifest.type = manifest.manifest_list_type()
         return manifest
 
     def _save_manifest(self, manifest):

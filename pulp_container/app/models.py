@@ -156,24 +156,22 @@ class Manifest(Content):
             return self.init_manifest_nature()
 
     def init_manifest_list_nature(self):
-        if self.media_type == MEDIA_TYPE.MANIFEST_LIST:
-            self.type = MANIFEST_TYPE.MANIFEST_LIST
-        elif self.media_type == MEDIA_TYPE.INDEX_OCI:
-            self.type = MANIFEST_TYPE.OCI_INDEX
+        updated_type = False
+        if not self.type:
+            self.type = self.manifest_list_type()
+            updated_type = True
 
         for manifest in self.listed_manifests.all():
             # it suffices just to have a single manifest of a specific nature;
             # there is no case where the manifest is both bootable and flatpak-based
             if manifest.is_bootable:
                 self.is_bootable = True
-                #self.type = MANIFEST_TYPE.BOOTABLE
                 return True
             elif manifest.is_flatpak:
                 self.is_flatpak = True
-                #self.type = MANIFEST_TYPE.FLATPAK
                 return True
 
-        return False
+        return updated_type
 
     def init_manifest_nature(self):
         if self.is_bootable_image():
@@ -226,6 +224,12 @@ class Manifest(Content):
         return any(
             layers.get("mediaType", None) == MEDIA_TYPE.COSIGN for layers in json_manifest["layers"]
         )
+    
+    def manifest_list_type(self):
+        if self.media_type == MEDIA_TYPE.MANIFEST_LIST:
+            return MANIFEST_TYPE.MANIFEST_LIST
+        if self.media_type == MEDIA_TYPE.INDEX_OCI:
+            return MANIFEST_TYPE.OCI_INDEX
 
     class Meta:
         default_related_name = "%(app_label)s_%(model_name)s"
