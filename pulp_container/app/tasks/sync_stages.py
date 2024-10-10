@@ -19,6 +19,7 @@ from pulp_container.constants import (
     SIGNATURE_TYPE,
     V2_ACCEPT_HEADERS,
 )
+from pulp_container.app.downloaders import PayloadTooLarge
 from pulp_container.app.models import (
     Blob,
     BlobManifest,
@@ -27,7 +28,6 @@ from pulp_container.app.models import (
     ManifestSignature,
     Tag,
 )
-from pulp_container.app.exceptions import PayloadTooLarge
 from pulp_container.app.utils import (
     extract_data_from_signature,
     urlpath_sanitize,
@@ -66,10 +66,8 @@ class ContainerFirstStage(Stage):
         try:
             response = await downloader.run(extra_data={"headers": V2_ACCEPT_HEADERS})
         except PayloadTooLarge as e:
-            # if it failed to download the manifest, log the error and
-            # there is nothing to return
-            log.warning(e.args[0])
-            return None, None, None
+            log.warning(e.message + ": max size limit exceeded!")
+            raise RuntimeError("Manifest max size limit exceeded.")
 
         with open(response.path, "rb") as content_file:
             raw_bytes_data = content_file.read()
@@ -153,11 +151,6 @@ class ContainerFirstStage(Stage):
 
             for artifact in asyncio.as_completed(to_download_artifact):
                 content_data, raw_text_data, response = await artifact
-
-                # skip the current object if it failed to be downloaded
-                if not content_data:
-                    await pb_parsed_tags.aincrement()
-                    continue
 
                 digest = calculate_digest(raw_text_data)
                 tag_name = response.url.split("/")[-1]

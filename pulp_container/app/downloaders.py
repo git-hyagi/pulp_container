@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import fnmatch
 import json
 import re
 
@@ -10,15 +9,13 @@ from django.conf import settings
 from logging import getLogger
 from urllib import parse
 
-
 from pulpcore.plugin.download import DownloaderFactory, HttpDownloader
 
 from pulp_container.constants import (
-    MANIFEST_MEDIA_TYPES,
+    CONTENT_TYPE_WITHOUT_SIZE_RESTRICTION,
     MEGABYTE,
     V2_ACCEPT_HEADERS,
 )
-from pulp_container.app.exceptions import PayloadTooLarge
 
 log = getLogger(__name__)
 
@@ -29,16 +26,17 @@ HeadResult = namedtuple(
 DownloadResult = namedtuple("DownloadResult", ["url", "artifact_attributes", "path", "headers"])
 
 
+class PayloadTooLarge(ClientResponseError):
+    """Client exceeded the max allowed payload size."""
+
+
 class ValidateResourceSizeMixin:
-    async def _handle_response(self, response, content_type=None, max_body_size=None):
+    async def _handle_response(self, response):
         """
         Overrides the HttpDownloader method to be able to limit the request body size.
         Handle the aiohttp response by writing it to disk and calculating digests
         Args:
             response (aiohttp.ClientResponse): The response to handle.
-            content_type (string): Type of the resource (manifest or signature) whose size
-                                   will be verified
-            max_body_size (int): Maximum allowed body size of the resource (manifest or signature).
         Returns:
              DownloadResult: Contains information about the result. See the DownloadResult docs for
                  more information.
@@ -49,9 +47,15 @@ class ValidateResourceSizeMixin:
         while True:
             chunk = await response.content.read(MEGABYTE)
             total_size += len(chunk)
+            max_body_size = self._get_max_allowed_resource_size(response)
             if max_body_size and total_size > max_body_size:
-                await self.finalize()
-                raise PayloadTooLarge()
+                self._ensure_no_broken_file()
+                raise PayloadTooLarge(
+                    status=413,
+                    message="manifest invalid",
+                    request_info=response.request_info,
+                    history=response.history,
+                )
             if not chunk:
                 await self.finalize()
                 break  # the download is done
@@ -63,21 +67,20 @@ class ValidateResourceSizeMixin:
             headers=response.headers,
         )
 
-    def get_content_type_and_max_resource_size(self, response):
+    def _get_max_allowed_resource_size(self, response):
         """
-        Returns the content_type (manifest or signature) based on the HTTP request and also the
-        corresponding resource allowed maximum size.
+        Returns the maximum allowed size for non-blob artifacts.
         """
-        max_resource_size = None
-        content_type = response.content_type
-        is_cosign_tag = fnmatch.fnmatch(response.url.name, "sha256-*.sig")
-        if isinstance(self, NoAuthSignatureDownloader) or is_cosign_tag:
-            max_resource_size = settings["SIGNATURE_PAYLOAD_MAX_SIZE"]
-            content_type = "Signature"
-        elif content_type in MANIFEST_MEDIA_TYPES.IMAGE + MANIFEST_MEDIA_TYPES.LIST:
-            max_resource_size = settings["MANIFEST_PAYLOAD_MAX_SIZE"]
-            content_type = "Manifest"
-        return content_type, max_resource_size
+
+        # content_type is defined by aiohttp based on the definition of the content-type header.
+        # When it is not set, aiohttp defines it as "application/octet-stream"
+        # note: http content-type header can be manipulated, making it easy to bypass this
+        #       size restriction, but checking the manifest content is also not a feasible solution
+        #       because we would need to first download it.
+        if response.content_type in CONTENT_TYPE_WITHOUT_SIZE_RESTRICTION:
+            return None
+
+        return settings["OCI_PAYLOAD_MAX_SIZE"]
 
 
 class RegistryAuthHttpDownloader(ValidateResourceSizeMixin, HttpDownloader):
@@ -164,10 +167,7 @@ class RegistryAuthHttpDownloader(ValidateResourceSizeMixin, HttpDownloader):
             if http_method == "head":
                 to_return = await self._handle_head_response(response)
             else:
-                content_type, max_resource_size = self.get_content_type_and_max_resource_size(
-                    response
-                )
-                to_return = await self._handle_response(response, content_type, max_resource_size)
+                to_return = await self._handle_response(response)
 
             await response.release()
             self.response_headers = response.headers
@@ -270,20 +270,6 @@ class NoAuthSignatureDownloader(ValidateResourceSizeMixin, HttpDownloader):
             raise FileNotFoundError()
         else:
             response.raise_for_status()
-
-    async def _run(self, extra_data=None):
-        if self.download_throttler:
-            await self.download_throttler.acquire()
-        async with self.session.get(
-            self.url, proxy=self.proxy, proxy_auth=self.proxy_auth, auth=self.auth
-        ) as response:
-            self.raise_for_status(response)
-            content_type, max_resource_size = self.get_content_type_and_max_resource_size(response)
-            to_return = await self._handle_response(response, content_type, max_resource_size)
-            await response.release()
-        if self._close_session_on_finalize:
-            await self.session.close()
-        return to_return
 
 
 class NoAuthDownloaderFactory(DownloaderFactory):

@@ -158,16 +158,17 @@ class PayloadTooLarge(APIException):
     """An exception to render an HTTP 413 response."""
 
     status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
-    default_code = "payload_too_large"
+    default_code = "manifest_invalid"
 
-    def __init__(self, message=None):
-        """Initialize the exception with the message for invalid manifest."""
-        message = message or "manifest invalid"
+    def __init__(self, message=None, code=None):
+        """Initialize the exception with the message for invalid size."""
+        message = message or "payload too large"
+        code = code or self.default_code
         super().__init__(
             detail={
                 "errors": [
                     {
-                        "code": "MANIFEST_INVALID",
+                        "code": code,
                         "message": message,
                         "detail": "http: request body too large",
                     }
