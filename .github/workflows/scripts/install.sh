@@ -20,7 +20,7 @@ PLUGIN_SOURCE="./pulp_container/dist/pulp_container-${PLUGIN_VERSION}-py3-none-a
 
 export PULP_API_ROOT="/pulp/"
 
-PIP_REQUIREMENTS=("pulp-cli==0.29.1")
+PIP_REQUIREMENTS=("pulp-cli==0.29.1 yarl==1.11.1 psycopg2==2.9.9")
 
 # This must be the **only** call to "pip install" on the test runner.
 pip install ${PIP_REQUIREMENTS[*]}
@@ -155,6 +155,8 @@ if [[ "$TEST" = "azure" ]]; then
   AZURE_STORAGE_CONNECTION_STRING='DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://ci-azurite:10000/devstoreaccount1;'
   az storage container create --name pulp-test --connection-string $AZURE_STORAGE_CONNECTION_STRING
 fi
+
+cmd_prefix bash -c "pip3 install yarl==1.11.1 django-auth-ldap==4.8.0 python-gnupg==0.5.2 isodate==0.6.1 charset-normalizer==3.3.2 psycopg2==2.9.9 pycryptodomex==3.20.0 plumbum==1.8.3 tomli==2.0.1 proxy.py==2.4.7"
 
 echo ::group::PIP_LIST
 cmd_prefix bash -c "pip3 list && pipdeptree"
