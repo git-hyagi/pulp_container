@@ -27,7 +27,8 @@ pip install ${PIP_REQUIREMENTS[*]}
 
 # Check out the pulp-cli branch matching the installed version.
 PULP_CLI_VERSION="$(pip freeze | sed -n -e 's/pulp-cli==//p')"
-git clone --depth 1 --branch "$PULP_CLI_VERSION" https://github.com/pulp/pulp-cli.git ../pulp-cli
+#git clone --depth 1 --branch "$PULP_CLI_VERSION" https://github.com/pulp/pulp-cli.git ../pulp-cli
+git clone --depth 1 --branch "0.29.1" https://github.com/pulp/pulp-cli.git ../pulp-cli
 
 cd .ci/ansible/
 if [ "$TEST" = "s3" ]; then
