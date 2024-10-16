@@ -20,7 +20,7 @@ PLUGIN_SOURCE="./pulp_container/dist/pulp_container-${PLUGIN_VERSION}-py3-none-a
 
 export PULP_API_ROOT="/pulp/"
 
-PIP_REQUIREMENTS=("pulp-cli")
+PIP_REQUIREMENTS=("pulp-cli==0.29.1")
 
 # This must be the **only** call to "pip install" on the test runner.
 pip install ${PIP_REQUIREMENTS[*]}
