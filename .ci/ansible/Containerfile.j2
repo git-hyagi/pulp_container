@@ -1,4 +1,7 @@
-FROM {{ ci_base | default(pulp_default_container) }}
+#FROM {{ ci_base | default(pulp_default_container) }}
+FROM ghcr.io/pulp/pulp-ci-centos:3.39.17
+
+RUN dnf install -y which
 
 # Add source directories to container
 {% for item in plugins %}
