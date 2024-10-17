@@ -155,6 +155,7 @@ if [[ "$TEST" = "azure" ]]; then
   az storage container create --name pulp-test --connection-string $AZURE_STORAGE_CONNECTION_STRING
 fi
 
+cmd_prefix bash -c "pip3 install plumbum==1.8.3 proxy.py==2.4.7"
 echo ::group::PIP_LIST
 cmd_prefix bash -c "pip3 list && pipdeptree"
 echo ::endgroup::
