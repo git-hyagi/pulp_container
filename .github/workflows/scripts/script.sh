@@ -125,6 +125,7 @@ if [[ "$TEST" == "performance" ]]; then
   exit
 fi
 
+
 if [ -f "$FUNC_TEST_SCRIPT" ]; then
   source "$FUNC_TEST_SCRIPT"
 else
