@@ -124,6 +124,10 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GITHUB_CONTEXT: "${{ github.event.pull_request.commits_url }}"
 
+      - name: Setup tmate session
+        if: ${{ matrix.env.TEST == 'lowerbounds' && always() }}
+        uses: mxschmitt/action-tmate@v3
+
       - name: "Extract Deprecations from Logs"
         run: |
           docker logs pulp 2>&1 | grep -i pulpcore.deprecation | tee deprecations-${{ matrix.env.TEST }}.txt
