@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 import time
+from functools import wraps
 from logging import getLogger
 
 from django.db import models
@@ -72,7 +73,7 @@ class Manifest(Content):
         digest (models.TextField): The manifest digest.
         schema_version (models.IntegerField): The manifest schema version.
         media_type (models.TextField): The manifest media type.
-        type (models.TextField): The manifest's type (flatpak, bootable, signature, etc.).
+        nature (models.TextField): The manifest's type (flatpak, bootable, signature, etc.).
         data (models.TextField): The manifest's data in text format.
         annotations (models.JSONField): Metadata stored inside the image manifest.
         labels (models.JSONField): Metadata stored inside the image configuration.
@@ -100,13 +101,15 @@ class Manifest(Content):
     digest = models.TextField(db_index=True)
     schema_version = models.IntegerField()
     media_type = models.TextField(choices=MANIFEST_CHOICES)
-    type = models.CharField(null=True)
+    nature = models.CharField(null=True)
     data = models.TextField(null=True)
 
     annotations = models.JSONField(default=dict)
     labels = models.JSONField(default=dict)
 
+    # DEPRECATED: this field is deprecated and will be removed in a future release.
     is_bootable = models.BooleanField(default=False)
+    # DEPRECATED: this field is deprecated and will be removed in a future release.
     is_flatpak = models.BooleanField(default=False)
 
     blobs = models.ManyToManyField(Blob, through="BlobManifest")
@@ -156,55 +159,40 @@ class Manifest(Content):
             return self.init_manifest_nature()
 
     def init_manifest_list_nature(self):
-        updated_type = False
-        if not self.type:
-            self.type = self.manifest_list_type()
-            updated_type = True
+        updated_nature = False
+        if not self.nature:
+            self.nature = MANIFEST_TYPE.UNKNOWN
+            updated_nature = True
 
         for manifest in self.listed_manifests.all():
             # it suffices just to have a single manifest of a specific nature;
             # there is no case where the manifest is both bootable and flatpak-based
             if manifest.is_bootable:
+                self.nature = MANIFEST_TYPE.BOOTABLE
                 self.is_bootable = True
                 return True
             elif manifest.is_flatpak:
+                self.nature = MANIFEST_TYPE.FLATPAK
                 self.is_flatpak = True
                 return True
 
-        return updated_type
+        return updated_nature
 
     def init_manifest_nature(self):
-        known_types = self.known_types()
-        for manifest_type in known_types.values():
-            func = manifest_type["check_function"]
-            if func():
-                self.type = manifest_type["type"]
-
-                # set custom attributes (is_flatpak, is_bootable) to keep compatibility
-                if manifest_type.get("custom", None):
-                    custom_key_name = list(manifest_type["custom"])[0]
-                    custom_key_value = manifest_type["custom"][custom_key_name]
-                    setattr(self, custom_key_name, custom_key_value)
-
+        for manifest_type, check_type_function in self.known_types().items():
+            if check_type_function():
+                self.nature = manifest_type
                 return True
 
         return False
 
     def known_types(self):
         return {
-            "bootable": {
-                "check_function": self.is_bootable_image,
-                "type": MANIFEST_TYPE.BOOTABLE,
-                "custom": {"is_bootable": True},
-            },
-            "flatpak": {
-                "check_function": self.is_flatpak_image,
-                "type": MANIFEST_TYPE.FLATPAK,
-                "custom": {"is_flatpak": True},
-            },
-            "helm": {"check_function": self.is_helm_image, "type": MANIFEST_TYPE.HELM},
-            "sign": {"check_function": self.is_cosign, "type": MANIFEST_TYPE.SIGNATURE},
-            "image": {"check_function": self.is_manifest_image, "type": MANIFEST_TYPE.IMAGE},
+            MANIFEST_TYPE.BOOTABLE: self.is_bootable_image,
+            MANIFEST_TYPE.FLATPAK: self.is_flatpak_image,
+            MANIFEST_TYPE.HELM: self.is_helm_image,
+            MANIFEST_TYPE.SIGNATURE: self.is_cosign,
+            MANIFEST_TYPE.IMAGE: self.is_manifest_image,
         }
 
     def is_bootable_image(self):
@@ -212,37 +200,45 @@ class Manifest(Content):
             self.annotations.get("containers.bootc") == "1"
             or self.labels.get("containers.bootc") == "1"
         ):
+            # DEPRECATED: is_bootable is deprecated and will be removed in a future release.
+            self.is_bootable = True
             return True
         else:
             return False
 
     def is_flatpak_image(self):
-        return True if self.labels.get("org.flatpak.ref") else False
-
-    def is_helm_image(self):
-        json_manifest = json.loads(self.data)
-        # schema1 does not have config, just return since it is deprecated
-        if not json_manifest.get("config", None):
-            return False
-        return json_manifest.get("config").get("mediaType") == MEDIA_TYPE.HELM
+        if self.labels.get("org.flatpak.ref"):
+            # DEPRECATED: is_flatpak is deprecated and will be removed in a future release.
+            self.is_flatpak = True
+            return True
+        return False
 
     def is_manifest_image(self):
         return self.media_type in (MEDIA_TYPE.MANIFEST_OCI, MEDIA_TYPE.MANIFEST_V2)
 
-    def is_cosign(self):
-        json_manifest = json.loads(self.data)
-        # schema1 has fsLayers instead of layers, just return since it is deprecated
-        if not json_manifest.get("layers", None):
-            return False
+    def validate_json_field(field):
+        def decorator(func):
+            @wraps(func)
+            def wrapper(self, *args, **kwargs):
+                json_manifest = json.loads(self.data)
+                if not json_manifest.get(field, None):
+                    return False
+                return func(self, json_manifest, *args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    @validate_json_field("layers")  # Check for 'layers' field for cosign images
+    def is_cosign(self, json_manifest):
         return any(
-            layers.get("mediaType", None) == MEDIA_TYPE.COSIGN for layers in json_manifest["layers"]
+            layer.get("mediaType", None) == MEDIA_TYPE.COSIGN for layer in json_manifest["layers"]
         )
 
-    def manifest_list_type(self):
-        if self.media_type == MEDIA_TYPE.MANIFEST_LIST:
-            return MANIFEST_TYPE.MANIFEST_LIST
-        if self.media_type == MEDIA_TYPE.INDEX_OCI:
-            return MANIFEST_TYPE.OCI_INDEX
+    @validate_json_field("config")  # Check for 'config' field for helm images
+    def is_helm_image(self, json_manifest):
+        return json_manifest.get("config").get("mediaType") == MEDIA_TYPE.HELM
+
 
     class Meta:
         default_related_name = "%(app_label)s_%(model_name)s"

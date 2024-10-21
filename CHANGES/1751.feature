@@ -1,1 +1,2 @@
-Added the `type` field to help differentiate Manifests.
+Introduced the `nature` field on the Manifests endpoint to enable easier differentiation of image
+types.

@@ -366,7 +366,6 @@ class ContainerFirstStage(Stage):
             data=raw_text_data,
         )
 
-        manifest_list.type = manifest_list.manifest_list_type()
         manifest_list_dc = DeclarativeContent(content=manifest_list)
         manifest_list_dc.extra_data["listed_manifests"] = []
         return manifest_list_dc
@@ -650,4 +649,4 @@ class ContainerContentSaver(ContentSaver):
         # it is possible to initialize the nature of the corresponding manifest lists
         for ml in manifest_lists:
             if ml.init_manifest_list_nature():
-                ml.save(update_fields=["is_bootable", "is_flatpak"])
+                ml.save(update_fields=["is_bootable", "is_flatpak", "nature"])
