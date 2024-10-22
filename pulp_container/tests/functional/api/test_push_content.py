@@ -37,6 +37,7 @@ from pulpcore.client.pulp_container import (
 
 def test_push_using_registry_client_admin(
     add_to_cleanup,
+    check_manifest_arch_os_size,
     registry_client,
     local_registry,
     container_manifest_api,
@@ -53,10 +54,7 @@ def test_push_using_registry_client_admin(
     # check pulp manifest model fields
     local_image = local_registry.inspect(local_url)
     manifest = container_manifest_api.list(digest=local_image[0]["Digest"])
-    manifests = manifest.to_dict()["results"]
-    assert any("amd" in manifest["architecture"] for manifest in manifests)
-    assert any("linux" in manifest["os"] for manifest in manifests)
-    assert any(manifest["compressed_layers_size"] > 0 for manifest in manifests)
+    check_manifest_arch_os_size(manifest)
 
     # ensure that same content can be pushed twice without permission errors
     local_registry.tag_and_push(image_path, local_url)

@@ -461,3 +461,14 @@ def pull_through_distribution(
         return distribution
 
     return _pull_through_distribution
+
+
+@pytest.fixture
+def check_manifest_arch_os_size():
+    def _check_manifest_arch_os_size(manifest):
+        manifests = manifest.to_dict()["results"]
+        assert any("amd64" in manifest["architecture"] for manifest in manifests)
+        assert any("linux" in manifest["os"] for manifest in manifests)
+        assert any(manifest["compressed_layers_size"] > 0 for manifest in manifests)
+
+    return _check_manifest_arch_os_size

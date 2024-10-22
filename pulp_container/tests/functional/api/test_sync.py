@@ -45,6 +45,7 @@ def synced_container_repository_factory(
 
 @pytest.mark.parallel
 def test_basic_sync(
+    check_manifest_arch_os_size,
     container_repo,
     container_remote,
     container_repository_api,
@@ -69,10 +70,7 @@ def test_basic_sync(
         media_type=[MEDIA_TYPE.MANIFEST_V2],
         digest=PULP_HELLO_WORLD_LINUX_AMD64_DIGEST,
     )
-    manifests = manifest.to_dict()["results"]
-    assert any("amd" in manifest["architecture"] for manifest in manifests)
-    assert any("linux" in manifest["os"] for manifest in manifests)
-    assert any(manifest["compressed_layers_size"] > 0 for manifest in manifests)
+    check_manifest_arch_os_size(manifest)
 
 
 @pytest.mark.parallel
