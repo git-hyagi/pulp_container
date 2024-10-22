@@ -85,7 +85,6 @@ from pulp_container.app.utils import (
     determine_media_type,
     extract_data_from_signature,
     filter_resource,
-    get_content_data,
     has_task_completed,
     validate_manifest,
 )
@@ -1361,10 +1360,7 @@ class Manifests(RedirectsMixin, ContainerRegistryApiMixin, ViewSet):
             data=raw_text_data,
         )
         if config_blob:
-            blob_artifact = Artifact.objects.get(sha256=config_blob.digest.removeprefix("sha256:"))
-            config_blob, _ = get_content_data(blob_artifact)
-            manifest.os = config_blob.get("os", None)
-            manifest.architecture = config_blob.get("architecture", None)
+            manifest.init_architecture_and_os(json.loads(raw_text_data))
         return manifest
 
     def _save_manifest(self, manifest):
