@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='manifest',
-            name='nature',
+            name='type',
             field=models.CharField(null=True),
         ),
     ]

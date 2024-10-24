@@ -64,7 +64,7 @@ def pull_and_verify(
             # 1.1. check pulp manifest model fields
             assert check_manifest_fields(
                 manifest_filters={"digest": local_image[0]["Digest"]},
-                fields={"nature": MANIFEST_TYPE.IMAGE},
+                fields={"type": MANIFEST_TYPE.IMAGE},
             )
 
             path, tag = local_image_path.split(":")

@@ -40,12 +40,12 @@ class Command(BaseCommand):
         manifests_updated_count = 0
 
         manifests_v1 = Manifest.objects.filter(
-            Q(media_type=MEDIA_TYPE.MANIFEST_V1), Q(data__isnull=True) | Q(nature__isnull=True)
+            Q(media_type=MEDIA_TYPE.MANIFEST_V1), Q(data__isnull=True) | Q(type__isnull=True)
         )
         manifests_updated_count += self.update_manifests(manifests_v1)
 
         manifests_v2 = Manifest.objects.filter(
-            Q(data__isnull=True) | Q(annotations={}, labels={}) | Q(nature__isnull=True)
+            Q(data__isnull=True) | Q(annotations={}, labels={}) | Q(type__isnull=True)
         )
         manifests_v2 = manifests_v2.exclude(
             media_type__in=[MEDIA_TYPE.MANIFEST_LIST, MEDIA_TYPE.INDEX_OCI, MEDIA_TYPE.MANIFEST_V1]
@@ -78,7 +78,7 @@ class Command(BaseCommand):
             "is_bootable",
             "is_flatpak",
             "data",
-            "nature",
+            "type",
         ]
 
         for manifest in manifests_qs.iterator():
@@ -111,12 +111,12 @@ class Command(BaseCommand):
             manifest_data, raw_bytes_data = get_content_data(manifest_artifact)
             manifest.data = raw_bytes_data.decode("utf-8")
 
-            if not (manifest.annotations or manifest.labels or manifest.nature):
+            if not (manifest.annotations or manifest.labels or manifest.type):
                 manifest.init_metadata(manifest_data)
 
             manifest._artifacts.clear()
             return True
 
-        elif not manifest.nature:
+        elif not manifest.type:
             return manifest.init_image_nature()
         return False

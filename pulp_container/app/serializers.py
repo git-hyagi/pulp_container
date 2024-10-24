@@ -64,7 +64,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
     digest = serializers.CharField(help_text="sha256 of the Manifest file")
     schema_version = serializers.IntegerField(help_text="Manifest schema version")
     media_type = serializers.CharField(help_text="Manifest media type of the file")
-    nature = serializers.CharField(
+    type = serializers.CharField(
         help_text="Manifest type (flatpak, bootable, signature, etc.).",
         required=False,
         default=None,
@@ -104,7 +104,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
         default=False,
         help_text=_(
             "A boolean determining whether users can boot from an image or not."
-            "[deprecated] check nature field instead"
+            "[deprecated] check type field instead"
         ),
     )
     # DEPRECATED: this field is deprecated and will be removed in a future release.
@@ -113,7 +113,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
         default=False,
         help_text=_(
             "A boolean determining whether the image bundles a Flatpak application."
-            "[deprecated] check nature field instead"
+            "[deprecated] check type field instead"
         ),
     )
 
@@ -129,7 +129,7 @@ class ManifestSerializer(NoArtifactContentSerializer):
             "labels",
             "is_bootable",
             "is_flatpak",
-            "nature",
+            "type",
         )
         model = models.Manifest
 

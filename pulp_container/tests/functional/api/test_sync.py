@@ -61,7 +61,7 @@ def test_basic_sync(
             "media_type": [MEDIA_TYPE.MANIFEST_V2],
             "digest": PULP_HELLO_WORLD_LINUX_AMD64_DIGEST,
         },
-        fields={"nature": MANIFEST_TYPE.IMAGE},
+        fields={"type": MANIFEST_TYPE.IMAGE},
     )
 
     container_sync(

@@ -649,4 +649,4 @@ class ContainerContentSaver(ContentSaver):
         # it is possible to initialize the nature of the corresponding manifest lists
         for ml in manifest_lists:
             if ml.init_manifest_list_nature():
-                ml.save(update_fields=["is_bootable", "is_flatpak", "nature"])
+                ml.save(update_fields=["is_bootable", "is_flatpak", "type"])

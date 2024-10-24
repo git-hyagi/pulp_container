@@ -54,7 +54,7 @@ def test_push_using_registry_client_admin(
     local_image = local_registry.inspect(local_url)
     assert check_manifest_fields(
         manifest_filters={"digest": local_image[0]["Digest"]},
-        fields={"nature": MANIFEST_TYPE.IMAGE},
+        fields={"type": MANIFEST_TYPE.IMAGE},
     )
 
     # ensure that same content can be pushed twice without permission errors

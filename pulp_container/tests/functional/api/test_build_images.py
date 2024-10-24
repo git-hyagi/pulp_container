@@ -88,7 +88,7 @@ def test_build_image_with_uploaded_containerfile(
     image = local_registry.inspect(distribution.base_path)
     assert image[0]["Config"]["Cmd"] == ["cat", "/tmp/inside-image.txt"]
     assert check_manifest_fields(
-        manifest_filters={"digest": image[0]["Digest"]}, fields={"nature": MANIFEST_TYPE.IMAGE}
+        manifest_filters={"digest": image[0]["Digest"]}, fields={"type": MANIFEST_TYPE.IMAGE}
     )
 
 
