@@ -22,7 +22,7 @@ MEDIA_TYPE = SimpleNamespace(
     CONFIG_BLOB_HELM="application/vnd.cncf.helm.config.v1+json",
     COSIGN_BLOB="application/vnd.dev.cosign.simplesigning.v1+json",
     COSIGN_ATTESTATION="application/vnd.dsse.envelope.v1+json",
-    COSIGN_BUNDLE="application/vnd.dev.sigstore.bundle.v0.3+json",
+    COSIGN_ATTESTATION_BUNDLE="application/vnd.dev.sigstore.bundle.v0.3+json",
 )
 
 V2_ACCEPT_HEADERS = {
@@ -82,24 +82,27 @@ MANIFEST_TYPE = SimpleNamespace(
     FLATPAK="flatpak",
     HELM="helm",
     COSIGN_SIGNATURE="cosign_signature",
+    COSIGN_ATTESTATION="cosign_attestation",
+    COSIGN_ATTESTATION_BUNDLE="cosign_attestation_bundle",
+    COSIGN_SBOM="cosign_sbom",
     UNKNOWN="unknown",
 )
 
-# COSIGN SBOM SPEC
+# COSIGN SPEC
 # note: SBOM attachments are deprecated and support will be removed in a Cosign release soon
-COSIGN_SBOM_FORMATS = [
-    "application/vnd.cyclonedx",
-    "text/spdx",
-    "application/vnd.syft+json",
-]
-
+COSIGN_SBOM_FORMATS = ["application/vnd.cyclonedx", "text/spdx", "application/vnd.syft+json"]
 COSIGN_SBOM_FORMATS_SUFFIXES = ["xml", "json"]
-
-COSIGN_SBOM_MEDIA_TYPE_WITH_SUFFIXES = [
+COSIGN_SBOM_FORMATS_WITH_SUFFIXES = [
     f"{sbom_formats}+{sbom_suffixes}"
     for sbom_formats in COSIGN_SBOM_FORMATS
-    if sbom_formats != "application/vnd.syft+json"
+    if sbom_formats != "application/vnd.syft+json"  # syft is a JSON only format
     for sbom_suffixes in COSIGN_SBOM_FORMATS_SUFFIXES
 ]
 
-COSIGN_SBOM_MEDIA_TYPE = COSIGN_SBOM_FORMATS + COSIGN_SBOM_MEDIA_TYPE_WITH_SUFFIXES
+MEDIA_TYPE.COSIGN_SBOM = COSIGN_SBOM_FORMATS + COSIGN_SBOM_FORMATS_WITH_SUFFIXES
+COSIGN_MEDIA_TYPES = [
+    *MEDIA_TYPE.COSIGN_SBOM,
+    MEDIA_TYPE.COSIGN_BLOB,
+    MEDIA_TYPE.COSIGN_ATTESTATION,
+    MEDIA_TYPE.COSIGN_ATTESTATION_BUNDLE,
+]

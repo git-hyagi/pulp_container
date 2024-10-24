@@ -5,7 +5,6 @@ import os
 import re
 import tempfile
 import time
-from functools import wraps
 from logging import getLogger
 
 from django.db import models
@@ -33,7 +32,13 @@ from pulpcore.plugin.util import gpg_verify
 
 from . import downloaders
 from pulp_container.app.utils import get_content_data
-from pulp_container.constants import MANIFEST_MEDIA_TYPES, MANIFEST_TYPE, MEDIA_TYPE, SIGNATURE_TYPE
+from pulp_container.constants import (
+    COSIGN_MEDIA_TYPES,
+    MANIFEST_MEDIA_TYPES,
+    MANIFEST_TYPE,
+    MEDIA_TYPE,
+    SIGNATURE_TYPE,
+)
 
 
 logger = getLogger(__name__)
@@ -192,8 +197,8 @@ class Manifest(Content):
         elif self.is_helm_chart():
             self.type = MANIFEST_TYPE.HELM
             return True
-        elif self.is_cosign():
-            self.type = MANIFEST_TYPE.COSIGN_SIGNATURE
+        elif media_type := self.is_cosign():
+            self.type = self.get_cosign_type(media_type)
             return True
         elif self.is_manifest_image():
             self.type = MANIFEST_TYPE.IMAGE
@@ -208,9 +213,7 @@ class Manifest(Content):
         )
 
     def is_flatpak_image(self):
-        if self.labels.get("org.flatpak.ref"):
-            return True
-        return False
+        return True if self.labels.get("org.flatpak.ref") else False
 
     def is_manifest_image(self):
         return self.media_type in MANIFEST_MEDIA_TYPES.IMAGE
@@ -226,7 +229,20 @@ class Manifest(Content):
         except KeyError:
             return False
 
-        return any(layer.get("mediaType", None) == MEDIA_TYPE.COSIGN_BLOB for layer in layers)
+        for layer in layers:
+            if layer["mediaType"] in COSIGN_MEDIA_TYPES:
+                return layer["mediaType"]
+        return False
+
+    def get_cosign_type(self, mediaType):
+        if mediaType == MEDIA_TYPE.COSIGN_BLOB:
+            return MANIFEST_TYPE.COSIGN_SIGNATURE
+        if mediaType in MEDIA_TYPE.COSIGN_SBOM:
+            return MANIFEST_TYPE.COSIGN_SBOM
+        if mediaType == MEDIA_TYPE.COSIGN_ATTESTATION:
+            return MANIFEST_TYPE.COSIGN_ATTESTATION
+        if mediaType == MEDIA_TYPE.COSIGN_ATTESTATION_BUNDLE:
+            return MANIFEST_TYPE.COSIGN_ATTESTATION_BUNDLE
 
     def is_helm_chart(self):
         try:
